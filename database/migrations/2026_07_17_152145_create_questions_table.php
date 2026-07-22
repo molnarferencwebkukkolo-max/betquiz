@@ -6,25 +6,21 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('questions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('category_id')->constrained()->onDelete('cascade');
-            $table->string('difficulty');
-            $table->text('question_text');
+            $table->string('difficulty')->default('medium');
+            $table->json('question_text');
             $table->string('image_path')->nullable();
             $table->boolean('is_approved')->default(false);
+            $table->boolean('is_active')->default(true); // <-- EZ A KULCSÁLLÓ SOR
+            $table->foreignId('creator_id')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('questions');

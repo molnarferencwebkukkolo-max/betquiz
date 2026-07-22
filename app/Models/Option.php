@@ -4,33 +4,37 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\App;
 
 class Option extends Model
 {
-    /**
-     * A tömegesen tömöríthető (fillable) mezők listája.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'question_id',
         'option_text',
-        'image_path',
-        'is_correct'
+        'is_correct',
     ];
 
-    /**
-     * Az adatbázis attribútumok típuskényszerítése (Casting).
-     */
     protected $casts = [
-        'is_correct' => 'boolean',
+        'option_text' => 'array',  // <-- EZ HIÁNYZOTT! Emiatt alakítja át automatikusan JSON-né
+        'is_correct'  => 'boolean',
     ];
 
-    /**
-     * Kapcsolat: A válaszlehetőség egy konkrét kérdéshez (Question) tartozik.
-     */
     public function question(): BelongsTo
     {
         return $this->belongsTo(Question::class);
+    }
+
+    /**
+     * Dinamikus többnyelvű válaszminta (getter)
+     */
+    public function getTranslatedTextAttribute(): string
+    {
+        $locale = App::getLocale();
+
+        if (is_array($this->option_text)) {
+            return $this->option_text[$locale] ?? $this->option_text['hu'] ?? reset($this->option_text);
+        }
+
+        return $this->option_text ?? '';
     }
 }
