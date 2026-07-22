@@ -2,52 +2,60 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\App;
 
 class Question extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
+        'quiz_id', // <-- FONTOS: benne kell lennie a fillable tömbben!
         'category_id',
+        'creator_id',
         'difficulty',
         'question_text',
         'image_path',
         'is_approved',
         'is_active',
-        'creator_id',
+        'times_answered', // <-- ÚJ
+        'times_correct',  // <-- ÚJ
     ];
+
+    /**
+     * Helyes válaszok aránya százalékban
+     */
+    public function successRate(): int
+    {
+        if ($this->times_answered === 0) {
+            return 0;
+        }
+
+        return round(($this->times_correct / $this->times_answered) * 100);
+    }
 
     protected $casts = [
         'question_text' => 'array',
-        'is_approved'   => 'boolean',
-        'is_active'     => 'boolean',
     ];
 
-    public function category(): BelongsTo
+    // 🎯 Ez a kapcsolat köti össze a Kérdést a Kvízzel:
+    public function quiz()
+    {
+        return $this->belongsTo(Quiz::class);
+    }
+
+    public function category()
     {
         return $this->belongsTo(Category::class);
     }
 
-    public function options(): HasMany
+    public function options()
     {
         return $this->hasMany(Option::class);
     }
 
-    public function creator(): BelongsTo
+    public function creator()
     {
         return $this->belongsTo(User::class, 'creator_id');
-    }
-
-    public function getTranslatedTextAttribute(): string
-    {
-        $locale = App::getLocale();
-
-        if (is_array($this->question_text)) {
-            return $this->question_text[$locale] ?? $this->question_text['hu'] ?? reset($this->question_text);
-        }
-
-        return $this->question_text ?? '';
     }
 }
