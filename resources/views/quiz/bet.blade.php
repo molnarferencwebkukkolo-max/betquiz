@@ -4,85 +4,88 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Játék Indítása - BetQuiz</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Központi Stíluslap -->
+    <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
-<body class="bg-gray-100 min-h-screen pb-12">
+<body style="padding-bottom: 3rem;">
 
 @include('layouts.navigation')
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="nav-container" style="padding-top: 2rem; padding-bottom: 2rem;">
 
     <!-- Fejléc & Egyenleg -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+    <div style="display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
         <div>
-            <h1 class="text-3xl font-extrabold text-gray-800">🎮 Válassz Kvízt és Játssz!</h1>
-            <p class="text-gray-500 text-sm mt-1">Teszteld a tudásod, tegyél meg tétet és gyűjts pontokat!</p>
+            <h1 class="q-title">🎮 Válassz Kvízt és Játssz!</h1>
+            <p style="color: #6b7280; font-size: 0.875rem; margin-top: 0.25rem;">Teszteld a tudásod, tegyél meg tétet és gyűjts pontokat!</p>
         </div>
 
         <!-- Egyenleg kártya -->
-        <div class="bg-white px-6 py-3 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3">
-            <span class="text-2xl">🪙</span>
+        <div class="balance-card-header">
+            <span style="font-size: 1.5rem;">🪙</span>
             <div>
-                <p class="text-xs font-bold text-gray-400 uppercase">Egyenleged</p>
-                <p class="text-xl font-extrabold text-indigo-600">{{ number_format($user->points ?? 0, 0, ',', ' ') }} PT</p>
+                <p style="font-size: 0.75rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; margin: 0;">Egyenleged</p>
+                <p style="font-size: 1.25rem; font-weight: 800; color: #4f46e5; margin: 0;">{{ number_format($user->points ?? 0, 0, ',', ' ') }} PT</p>
             </div>
         </div>
     </div>
 
     <!-- 🔍 Szűrő és Kereső Sáv -->
-    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mb-8">
-        <form action="{{ route('quiz.bet') }}" method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="filter-card">
+        <form action="{{ route('quiz.bet') }}" method="GET">
+            <div class="filter-grid">
 
-            <!-- Kereső -->
-            <div class="md:col-span-2">
-                <label class="block text-xs font-extrabold text-gray-400 uppercase mb-1">Keresés</label>
-                <input type="text" name="search" value="{{ request('search') }}"
-                       placeholder="Keresés kvíz címe vagy leírása alapján..."
-                       class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 font-semibold text-gray-800 text-sm">
-            </div>
+                <!-- Kereső -->
+                <div>
+                    <label class="form-label-uppercase">Keresés</label>
+                    <input type="text" name="search" value="{{ request('search') }}"
+                           placeholder="Keresés kvíz címe vagy leírása alapján..."
+                           class="form-control-custom w-100" style="font-size: 0.875rem;">
+                </div>
 
-            <!-- Kategória szűrő -->
-            <div>
-                <label class="block text-xs font-extrabold text-gray-400 uppercase mb-1">Kategória</label>
-                <select name="category_id" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 font-semibold text-gray-800 text-sm">
-                    <option value="all">Minden kategória</option>
-                    @foreach($categories as $cat)
-                        @php
-                            $cName = is_array($cat->name) ? ($cat->name['hu'] ?? reset($cat->name)) : $cat->name;
-                        @endphp
-                        <option value="{{ $cat->id }}" {{ request('category_id') == $cat->id ? 'selected' : '' }}>
-                            {{ $cName }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-
-            <!-- Rendezés & Gomb -->
-            <div class="flex items-end gap-2">
-                <div class="w-full">
-                    <label class="block text-xs font-extrabold text-gray-400 uppercase mb-1">Rendezés</label>
-                    <select name="sort" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 font-semibold text-gray-800 text-sm">
-                        <option value="latest" {{ request('sort') === 'latest' ? 'selected' : '' }}>Legújabbak</option>
-                        <option value="oldest" {{ request('sort') === 'oldest' ? 'selected' : '' }}>Légtrégiebbek</option>
+                <!-- Kategória szűrő -->
+                <div>
+                    <label class="form-label-uppercase">Kategória</label>
+                    <select name="category_id" class="form-select-custom w-100" style="font-size: 0.875rem;">
+                        <option value="all">Minden kategória</option>
+                        @foreach($categories as $cat)
+                            @php
+                                $cName = is_array($cat->name) ? ($cat->name['hu'] ?? reset($cat->name)) : $cat->name;
+                            @endphp
+                            <option value="{{ $cat->id }}" {{ request('category_id') == $cat->id ? 'selected' : '' }}>
+                                {{ $cName }}
+                            </option>
+                        @endforeach
                     </select>
                 </div>
-                <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl shadow transition text-sm">
-                    Szűrés
-                </button>
-            </div>
 
+                <!-- Rendezés & Gomb -->
+                <div style="display: flex; align-items: flex-end; gap: 0.5rem;">
+                    <div style="width: 100%;">
+                        <label class="form-label-uppercase">Rendezés</label>
+                        <select name="sort" class="form-select-custom w-100" style="font-size: 0.875rem;">
+                            <option value="latest" {{ request('sort') === 'latest' ? 'selected' : '' }}>Legújabbak</option>
+                            <option value="oldest" {{ request('sort') === 'oldest' ? 'selected' : '' }}>Légtrégiebbek</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary-purple" style="padding: 0.75rem 1.25rem; font-size: 0.875rem;">
+                        Szűrés
+                    </button>
+                </div>
+
+            </div>
         </form>
     </div>
 
     <!-- 🎴 KVÍZ KÁRTYÁK GRID -->
     @if($quizzes->isEmpty())
-        <div class="bg-white rounded-3xl p-12 text-center border border-gray-100">
-            <p class="text-4xl mb-3">🔍</p>
-            <h3 class="text-lg font-extrabold text-gray-800 mb-1">Nem található kvíz</h3>
-            <p class="text-sm text-gray-500">Próbálj meg más keresési feltételt megadni!</p>
+        <div class="quiz-empty-card">
+            <p style="font-size: 2.25rem; margin-bottom: 0.75rem;">🔍</p>
+            <h3 style="font-size: 1.125rem; font-weight: 800; color: #1f2937; margin-bottom: 0.25rem;">Nem található kvíz</h3>
+            <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">Próbálj meg más keresési feltételt megadni!</p>
         </div>
     @else
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div class="quiz-grid">
             @foreach($quizzes as $quiz)
                 @php
                     $catName = is_array($quiz->category->name ?? null)
@@ -90,46 +93,43 @@
                         : ($quiz->category->name ?? 'Általános');
                 @endphp
 
-                <div class="bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition overflow-hidden flex flex-col justify-between">
+                <div class="quiz-card">
                     <div>
                         <!-- Fejléckép vagy Alapértelmezett borító -->
-                        <div class="h-36 w-full bg-gradient-to-r from-indigo-500 to-purple-600 relative overflow-hidden">
+                        <div class="quiz-card-cover">
                             @if($quiz->cover_image)
-                                <img src="{{ asset('storage/' . $quiz->cover_image) }}" alt="{{ $quiz->title }}" class="w-full h-full object-cover">
+                                <img src="{{ asset('storage/' . $quiz->cover_image) }}" alt="{{ $quiz->title }}" style="width: 100%; height: 100%; object-fit: cover;">
                             @else
-                                <div class="w-full h-full flex items-center justify-center text-white/20 font-black text-5xl select-none">
+                                <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.2); font-weight: 900; font-size: 2.5rem; user-select: none;">
                                     BETQUIZ
                                 </div>
                             @endif
 
                             <!-- Kategória badge -->
-                            <span class="absolute top-3 left-3 bg-white/90 backdrop-blur-md text-indigo-800 text-xs font-extrabold px-3 py-1 rounded-full shadow-sm">
-                                    {{ $catName }}
-                                </span>
+                            <span class="badge-category-float">
+                                {{ $catName }}
+                            </span>
                         </div>
 
                         <!-- Tartalom -->
-                        <div class="p-5">
-                            <h3 class="font-extrabold text-gray-800 text-lg leading-snug line-clamp-2 mb-2">
+                        <div class="quiz-card-body">
+                            <h3 class="quiz-card-title">
                                 {{ $quiz->title }}
                             </h3>
-                            <p class="text-xs text-gray-500 line-clamp-2 mb-4">
+                            <p class="quiz-card-desc">
                                 {{ $quiz->description ?? 'Nincs külön leírás megadva ehhez a kvízhez.' }}
                             </p>
                         </div>
                     </div>
 
                     <!-- Kártya Lábléc & Indítás -->
-                    <div class="p-5 pt-0 border-t border-gray-50 mt-auto">
-                        <div class="flex items-center justify-between text-xs font-bold text-gray-400 py-3">
+                    <div class="quiz-card-footer">
+                        <div class="quiz-card-meta">
                             <span>❓ {{ $quiz->questions_count }} kérdés</span>
                             <span>👤 {{ $quiz->creator->name ?? 'Rendszer' }}</span>
                         </div>
 
-                        <!-- ❌ ROSSZ VOLT: href="{{ route('quizzes.show', $quiz->id) }}" -->
-
-                        <!-- ✅ JÓ: Közvetlenül a játékra mutató hivatkozás: -->
-                        <a href="{{ route('quiz.bet', ['quiz_id' => $quiz->id]) }}" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-2xl shadow transition text-center block text-sm">
+                        <a href="{{ route('quiz.bet', ['quiz_id' => $quiz->id]) }}" class="btn-start-quiz">
                             🎮 Játék Indítása
                         </a>
                     </div>
@@ -138,7 +138,7 @@
         </div>
 
         <!-- Lapozó -->
-        <div class="mt-8">
+        <div style="margin-top: 2rem;">
             {{ $quizzes->links() }}
         </div>
     @endif

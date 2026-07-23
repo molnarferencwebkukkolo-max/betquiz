@@ -4,50 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kérdésbank - BetQuiz</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Központi Stíluslap -->
+    <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
-<body class="bg-gray-100 min-h-screen pb-12">
+<body style="padding-bottom: 3rem;">
 
 @include('layouts.navigation')
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="nav-container" style="padding-top: 2rem; padding-bottom: 2rem;">
 
     <!-- Fejléc -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+    <div style="display: flex; flex-direction: row; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap;">
         <div>
-            <h1 class="text-3xl font-extrabold text-gray-800">❓ Kérdésbank</h1>
-            <p class="text-sm text-gray-500 mt-1">
+            <h1 class="q-title">❓ Kérdésbank</h1>
+            <p style="font-size: 0.875rem; color: #6b7280; margin-top: 0.25rem;">
                 {{ $user->isUseradmin() ? 'Az adatbázisban szereplő összes kérdés és azok kvízei.' : 'A saját kvízeidhez feltöltött kérdések.' }}
             </p>
         </div>
 
-        <div class="flex gap-2">
-            <a href="{{ route('questions.create') }}" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow transition text-sm">
+        <div>
+            <a href="{{ route('questions.create') }}" class="btn-primary-purple" style="font-size: 0.875rem; text-decoration: none;">
                 ➕ Új Kérdés Hozzáadása
             </a>
         </div>
     </div>
 
     @if(session('success'))
-        <div class="mb-6 p-4 bg-green-100 border border-green-300 text-green-800 rounded-2xl font-bold">
+        <div class="alert-success-custom">
             {{ session('success') }}
         </div>
     @endif
 
     <!-- Kérdések Táblázat -->
-    <div class="bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
+    <div class="table-card">
+        <div style="overflow-x: auto;">
+            <table class="table-custom">
                 <thead>
-                <tr class="bg-gray-50 border-b border-gray-100 text-xs uppercase font-extrabold text-gray-500 tracking-wider">
-                    <th class="p-4">Kérdés Szövege</th>
-                    <th class="p-4">Tartozó Kvíz</th>
-                    <th class="p-4">Nehézség</th>
-                    <th class="p-4">Helyes Válasz</th>
-                    <th class="p-4 text-right">Műveletek</th>
+                <tr>
+                    <th>Kérdés Szövege</th>
+                    <th>Tartozó Kvíz</th>
+                    <th>Nehézség</th>
+                    <th>Helyes Válasz</th>
+                    <th style="text-align: right;">Műveletek</th>
                 </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100 text-sm">
+                <tbody>
                 @forelse($questions as $question)
                     @php
                         $qText = is_array($question->question_text)
@@ -58,51 +59,51 @@
                         $cText = $correctOpt ? (is_array($correctOpt->option_text) ? ($correctOpt->option_text['hu'] ?? reset($correctOpt->option_text)) : $correctOpt->option_text) : '-';
                     @endphp
 
-                    <tr class="hover:bg-gray-50/50 transition">
+                    <tr>
                         <!-- Kérdés -->
-                        <td class="p-4 font-semibold text-gray-800 max-w-md">
+                        <td style="font-weight: 600; color: #1f2937; max-width: 24rem;">
                             {{ $qText }}
                         </td>
 
                         <!-- Tartozó Kvíz Badge -->
-                        <td class="p-4">
+                        <td>
                             @if($question->quiz)
-                                <span class="inline-block px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 font-bold text-xs rounded-xl">
-                                            🎯 {{ $question->quiz->title }}
-                                        </span>
+                                <span class="badge-quiz-title">
+                                    🎯 {{ $question->quiz->title }}
+                                </span>
                             @else
-                                <span class="inline-block px-2.5 py-1 bg-gray-100 text-gray-500 font-semibold text-xs rounded-xl">
-                                            Nincs Kvízhez kötve
-                                        </span>
+                                <span class="badge-no-quiz">
+                                    Nincs Kvízhez kötve
+                                </span>
                             @endif
                         </td>
 
                         <!-- Nehézség -->
-                        <td class="p-4">
+                        <td>
                             @if($question->difficulty === 'easy')
-                                <span class="px-2.5 py-1 bg-green-100 text-green-700 font-extrabold text-xs rounded-full">Könnyű</span>
+                                <span class="badge-diff-easy">Könnyű</span>
                             @elseif($question->difficulty === 'hard')
-                                <span class="px-2.5 py-1 bg-red-100 text-red-700 font-extrabold text-xs rounded-full">Nehéz</span>
+                                <span class="badge-diff-hard">Nehéz</span>
                             @else
-                                <span class="px-2.5 py-1 bg-amber-100 text-amber-700 font-extrabold text-xs rounded-full">Közepes</span>
+                                <span class="badge-diff-medium">Közepes</span>
                             @endif
                         </td>
 
                         <!-- Helyes Válasz -->
-                        <td class="p-4 text-emerald-600 font-bold">
+                        <td class="text-correct-answer">
                             ✓ {{ $cText }}
                         </td>
 
                         <!-- Műveletek -->
-                        <td class="p-4 text-right space-x-2">
-                            <a href="{{ route('questions.edit', $question->id) }}" class="text-indigo-600 hover:text-indigo-900 font-bold text-xs">
+                        <td style="text-align: right;">
+                            <a href="{{ route('questions.edit', $question->id) }}" style="color: #4f46e5; font-weight: 700; font-size: 0.75rem; text-decoration: none;">
                                 ✏️ Szerkesztés
                             </a>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="p-8 text-center text-gray-400 font-semibold">
+                        <td colspan="5" style="padding: 2rem; text-align: center; color: #9ca3af; font-weight: 600;">
                             Még nincsenek kérdések az adatbázisban!
                         </td>
                     </tr>
@@ -112,7 +113,7 @@
         </div>
 
         <!-- Lapozó -->
-        <div class="p-4 border-t border-gray-100">
+        <div style="padding: 1rem; border-top: 1px solid #f3f4f6;">
             {{ $questions->links() }}
         </div>
     </div>

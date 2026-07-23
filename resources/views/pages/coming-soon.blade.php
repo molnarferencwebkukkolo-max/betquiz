@@ -4,24 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $title }} - BetQuiz</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Központi Stíluslap -->
+    <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body>
 
 @include('layouts.navigation')
 
-<div class="max-w-3xl mx-auto px-4 py-16 text-center">
-    <div class="bg-white rounded-3xl shadow-xl p-10 border border-gray-100">
-        <div class="text-6xl mb-4">🚀</div>
-        <h1 class="text-3xl font-extrabold text-gray-800 mb-3">{{ $title }}</h1>
-        <p class="text-gray-600 text-lg mb-8">{{ $subtitle }}</p>
+<div class="coming-soon-container">
+    <div class="card-coming-soon">
+        <div class="coming-soon-icon">🚀</div>
+        <h1 class="coming-soon-title">{{ $title }}</h1>
+        <p class="coming-soon-subtitle">{{ $subtitle }}</p>
 
-        <span class="inline-block px-4 py-2 bg-indigo-50 text-indigo-700 font-bold text-sm rounded-full border border-indigo-100">
-                Fejlesztés alatt (Coming Soon)
-            </span>
+        <span class="badge-coming-soon">
+            Fejlesztés alatt (Coming Soon)
+        </span>
 
         <div class="mt-8">
-            <a href="{{ route('dashboard') }}" class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow hover:bg-indigo-700 transition">
+            <a href="{{ route('dashboard') }}" class="btn-back-home">
                 Vissza a Játékhoz
             </a>
         </div>

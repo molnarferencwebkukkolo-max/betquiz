@@ -4,27 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BetQuiz - Kérdés Szerkesztése</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Központi Stíluslap -->
+    <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
-<body class="bg-gray-100 min-h-screen p-6">
+<body style="padding: 1.5rem;">
 
-<div class="max-w-2xl mx-auto bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+<div class="q-edit-container">
 
-    <div class="flex justify-between items-center mb-6 pb-3 border-b">
-        <h1 class="text-2xl font-extrabold text-gray-800">✏️ Kérdés Szerkesztése</h1>
-        <a href="{{ route('questions.index') }}" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 font-bold text-gray-700 rounded-xl text-sm transition">
+    <div class="q-header" style="padding-bottom: 0.75rem; border-bottom: 1px solid #e5e7eb;">
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: #1f2937; margin: 0;">✏️ Kérdés Szerkesztése</h1>
+        <a href="{{ route('questions.index') }}" class="nav-link-item">
             Mégse
         </a>
     </div>
 
-    <form action="{{ route('questions.update', $question->id) }}" method="POST" enctype="multipart/form-data" class="space-y-5">
+    <form action="{{ route('questions.update', $question->id) }}" method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 1.25rem; margin-top: 1.5rem;">
         @csrf
         @method('PUT')
 
-        <div class="grid grid-cols-2 gap-4">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
             <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-1">📂 Kategória:</label>
-                <select name="category_id" required class="w-full p-3 border-2 border-gray-200 rounded-xl">
+                <label class="form-label">📂 Kategória:</label>
+                <select name="category_id" required class="form-select-custom w-100">
                     @foreach($categories as $cat)
                         <option value="{{ $cat->id }}" {{ $question->category_id == $cat->id ? 'selected' : '' }}>
                             {{ is_array($cat->name) ? ($cat->name['hu'] ?? reset($cat->name)) : $cat->name }}
@@ -33,8 +34,8 @@
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-1">⚡ Nehézség:</label>
-                <select name="difficulty" required class="w-full p-3 border-2 border-gray-200 rounded-xl">
+                <label class="form-label">⚡ Nehézség:</label>
+                <select name="difficulty" required class="form-select-custom w-100">
                     <option value="easy" {{ $question->difficulty == 'easy' ? 'selected' : '' }}>Könnyű</option>
                     <option value="medium" {{ $question->difficulty == 'medium' ? 'selected' : '' }}>Közepes</option>
                     <option value="hard" {{ $question->difficulty == 'hard' ? 'selected' : '' }}>Nehéz</option>
@@ -43,46 +44,52 @@
         </div>
 
         <!-- Kérdés Szövege / Képe -->
-        <div class="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-3">
+        <div class="q-section-bg" style="display: flex; flex-direction: column; gap: 0.75rem;">
             @php
                 $qText = is_array($question->question_text) ? ($question->question_text['hu'] ?? reset($question->question_text)) : $question->question_text;
             @endphp
             <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-1">❓ Kérdés szövege:</label>
-                <input type="text" name="question_text" value="{{ $qText }}" class="w-full p-3 border-2 border-gray-200 rounded-xl">
+                <label class="form-label">❓ Kérdés szövege:</label>
+                <input type="text" name="question_text" value="{{ $qText }}" class="form-control-custom w-100">
             </div>
             <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-1">🖼️ Kérdés képe:</label>
+                <label class="form-label">🖼️ Kérdés képe:</label>
                 @if($question->image_path)
-                    <img src="{{ asset('storage/' . $question->image_path) }}" class="h-20 rounded-lg mb-2 border">
+                    <div>
+                        <img src="{{ asset('storage/' . $question->image_path) }}" class="img-preview-q">
+                    </div>
                 @endif
-                <input type="file" name="question_image" accept="image/*" class="w-full text-xs text-gray-500">
+                <input type="file" name="question_image" accept="image/*" class="file-input-custom">
             </div>
         </div>
 
         <!-- Válaszok -->
-        <div class="space-y-4">
-            <label class="block text-sm font-bold text-gray-800">🎯 Válaszlehetőségek:</label>
+        <div>
+            <label class="form-label" style="font-weight: 700; margin-bottom: 0.75rem;">🎯 Válaszlehetőségek:</label>
 
-            @foreach($question->options as $i => $opt)
-                @php
-                    $optText = is_array($opt->option_text) ? ($opt->option_text['hu'] ?? reset($opt->option_text)) : $opt->option_text;
-                @endphp
-                <div class="p-3 border-2 border-gray-200 rounded-xl space-y-2 bg-gray-50/50">
-                    <div class="flex items-center gap-3">
-                        <input type="radio" name="correct_option" value="{{ $i }}" {{ $opt->is_correct ? 'checked' : '' }} class="w-5 h-5 text-indigo-600">
-                        <span class="font-bold text-gray-700">{{ chr(65 + $i) }} opció</span>
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                @foreach($question->options as $i => $opt)
+                    @php
+                        $optText = is_array($opt->option_text) ? ($opt->option_text['hu'] ?? reset($opt->option_text)) : $opt->option_text;
+                    @endphp
+                    <div class="q-option-box">
+                        <div class="q-option-header">
+                            <input type="radio" name="correct_option" value="{{ $i }}" {{ $opt->is_correct ? 'checked' : '' }} style="width: 1.25rem; height: 1.25rem; accent-color: #4f46e5;">
+                            <span style="font-weight: 700; color: #374151;">{{ chr(65 + $i) }} opció</span>
+                        </div>
+                        <input type="text" name="options[{{ $i }}][text]" value="{{ $optText }}" class="form-control-custom w-100" style="margin-bottom: 0.5rem; font-size: 0.875rem;">
+                        @if($opt->image_path)
+                            <div style="margin-bottom: 0.5rem;">
+                                <img src="{{ asset('storage/' . $opt->image_path) }}" class="img-preview-opt">
+                            </div>
+                        @endif
+                        <input type="file" name="options[{{ $i }}][image]" accept="image/*" class="file-input-custom">
                     </div>
-                    <input type="text" name="options[{{ $i }}][text]" value="{{ $optText }}" class="w-full p-2 border rounded-lg text-sm">
-                    @if($opt->image_path)
-                        <img src="{{ asset('storage/' . $opt->image_path) }}" class="h-12 rounded border">
-                    @endif
-                    <input type="file" name="options[{{ $i }}][image]" accept="image/*" class="w-full text-xs text-gray-500">
-                </div>
-            @endforeach
+                @endforeach
+            </div>
         </div>
 
-        <button type="submit" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg rounded-xl shadow-lg transition">
+        <button type="submit" class="btn-save-question">
             💾 Változtatások Mentése
         </button>
     </form>

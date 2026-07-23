@@ -1,0 +1,20 @@
+========================================
+1. Műszerfal & Főoldalak
+========================================
+
+1.1. resources/views/welcome.blade.php
+
+    Leírás: Publikus érkező oldal (Landing page).
+    A még be nem jelentkezett látogatóknak mutatja be a BetQuiz platformot, bónuszokat, és közvetlen
+    regisztráció/bejelentkezés gombokat biztosít.
+
+1.2. resources/views/dashboard.blade.php
+    Leírás: A bejelentkezett felhasználók központi vezérlőpultja. Megjeleníti az aktuális egyenleget, a
+    gyorsakció-gombokat (Játék indítás, Kvíz nyitás, Tartalmaim), a kiemelt kvízeket, a saját kvízek állapotát,
+    valamint Adminisztrátorok számára a bírálatra váró kvízeket.
+
+========================================
+2. Profil & Felhasználói Beállítások
+========================================
+
+2.1. resources/views/profile/show.blade.php

@@ -46,35 +46,104 @@ class QuizManagementController extends Controller
     }
 
     /**
-     * Kvíz publikálása vagy visszavonása
+     * Kvíz publikálása / beküldése jóváhagyásra
      */
     public function togglePublish(Quiz $quiz)
     {
-        $user = Auth::user();
+        $user = auth()->user();
 
-        // Jogosultság ellenőrzése
-        if (!$user->isUseradmin() && $quiz->creator_id !== $user->id) {
-            abort(403, 'Nincs jogosultságod ehhez a kvízhez!');
+        // 1. Ellenőrizzük, hogy a felhasználó a tulajdonos vagy admin-e
+        if ($user->id !== $quiz->creator_id && $user->role !== 'admin') {
+            abort(403, 'Nincs jogosultságod a kvíz státuszának módosításához.');
         }
 
-        $questionCount = $quiz->questions()->count();
-
-        // Ha publikálni szeretné, de nincs meg a 100 kérdés
-        if ($quiz->status !== 'approved' && $questionCount < 100) {
-            return back()->withErrors(['publish' => 'A kvíz publikálásához legalább 100 kérdés feltöltése szükséges! (Jelenleg: ' . $questionCount . ' db)']);
-        }
-
-        // Státusz váltása az adatbázis által elfogadott értékekre ('approved' és 'pending')
-        if ($quiz->status === 'approved') {
-            $quiz->status = 'pending'; // Visszavonás
-            $message = '🔒 Kvíz sikeresen visszavonva (szerkesztés alatt)!';
+        // 2. SZABÁLY ALAPJÁN TÖRTÉNŐ STÁTUSZVÁLTÁS:
+        if ($user->role === 'admin') {
+            // AZ ADMIN közvetlenül jóváhagyhatja / publikálhatja
+            $newStatus = ($quiz->status === 'approved') ? 'pending' : 'approved';
+            $message = ($newStatus === 'approved')
+                ? 'A kvíz sikeresen jóváhagyva és publikálva!'
+                : 'A kvíz visszatéve a várakozási sorba.';
         } else {
-            $quiz->status = 'approved'; // Publikálás
-            $message = '🚀 Kvíz sikeresen publikálva! Mostantól elérhető a játékosok számára.';
+            // A TULAJDONOS csak jóváhagyásra küldheti be (pending)
+            // Közvetlenül approved-ba NEM teheti!
+            if ($quiz->status === 'approved') {
+                return redirect()->back()->with('error', 'A már jóváhagyott kvízt csak adminisztrátor vonhatja vissza.');
+            }
+
+            $newStatus = 'pending';
+            $message = 'A kvíz sikeresen beküldve az adminisztrátornak jóváhagyásra!';
         }
 
-        $quiz->save();
+        $quiz->update([
+            'status' => $newStatus,
+            'rejection_reason' => null, // Státuszváltáskor töröljük az esetleges korábbi elutasítási indokot
+        ]);
 
-        return back()->with('success', $message);
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Admin: Kvíz jóváhagyása
+     */
+    public function approveQuiz(Quiz $quiz)
+    {
+        // Admin jogosultság ellenőrzése
+        if (auth()->user()->role !== 'admin') {
+            abort(403, 'Nincs jogosultságod a művelethez.');
+        }
+
+        $quiz->update([
+            'status' => 'approved',
+            'rejection_reason' => null,
+        ]);
+
+        return redirect()->back()->with('success', 'Kvíz sikeresen jóváhagyva!');
+    }
+
+    /**
+     * Admin: Kvíz elutasítása
+     */
+    public function rejectQuiz(Request $request, Quiz $quiz)
+    {
+        // Admin jogosultság ellenőrzése
+        if (auth()->user()->role !== 'admin') {
+            abort(403, 'Nincs jogosultságod a művelethez.');
+        }
+
+        $request->validate([
+            'rejection_reason' => 'required|string|max:500',
+        ]);
+
+        $quiz->update([
+            'status' => 'rejected',
+            'rejection_reason' => $request->rejection_reason,
+        ]);
+
+        return redirect()->back()->with('success', 'Kvíz elutasítva.');
+    }
+
+    /**
+     * KIZÁRÓLAG ADMIN / HOSTADMIN: Teljes kvíz átrendelése/átadása másik felhasználónak
+     */
+    public function transferOwnership(Request $request, Quiz $quiz)
+    {
+        $user = auth()->user();
+
+        // Szigorú Hostadmin / Admin jogosultság ellenőrzése
+        if ($user->role !== 'admin') {
+            abort(403, 'Kizárólag adminisztrátor adhat át kvízt más felhasználónak.');
+        }
+
+        $request->validate([
+            'new_owner_id' => 'required|exists:users,id',
+        ]);
+
+        // Kvíz tulajdonosának módosítása 1/1-ben
+        $quiz->update([
+            'creator_id' => $request->new_owner_id,
+        ]);
+
+        return redirect()->back()->with('success', 'A kvíz tulajdonjoga sikeresen átadva az új felhasználónak!');
     }
 }

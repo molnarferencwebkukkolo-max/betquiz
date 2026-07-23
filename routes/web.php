@@ -3,98 +3,94 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuizController;
+use App\Http\Controllers\QuizPlayController;
 use App\Http\Controllers\QuestionController;
-use App\Http\Controllers\UserController;
+use App\Http\Controllers\QuizManagementController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\SettingController;
-use App\Http\Controllers\QuizManagementController;
 
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+*/
 
-// Kezdőlap átirányítása a Dashboardra
 Route::get('/', function () {
-    return redirect()->route('dashboard');
+    return view('welcome');
 });
 
-// Védett Útvonalak (Csak bejelentkezett felhasználóknak)
+Route::middleware(['auth', 'verified'])->group(function () {
+
+    // ------------------------------------------------------------------------
+    // 1. DASHBOARD & KATALÓGUS
+    // ------------------------------------------------------------------------
+    Route::get('/dashboard', [QuizController::class, 'dashboard'])->name('dashboard');
+    Route::get('/quiz/catalog', [QuizController::class, 'showBetForm'])->name('quiz.bet');
+
+    // ------------------------------------------------------------------------
+    // 2. EGYSÉGES JÁTÉKFOLYAMAT (QuizPlayController)
+    // ------------------------------------------------------------------------
+    // Tét- és nehézségbeállító képernyő
+    Route::get('/quiz/setup/{quiz}', [QuizController::class, 'setupQuizPlay'])->name('quiz.setup');
+
+    // Tét levonása, session inicializálása és játék indítása
+    Route::post('/quiz/start/{quiz}', [QuizPlayController::class, 'start'])->name('quiz.start');
+
+    // Tényleges játék felület (kérdések)
+    Route::get('/quiz/play/{quiz}', [QuizPlayController::class, 'play'])->name('quiz.play');
+
+    // Válasz ellenőrzése (AJAX JSON válasz)
+    Route::post('/quiz/check', [QuizPlayController::class, 'answer'])->name('quiz.check');
+
+    // ------------------------------------------------------------------------
+    // 3. KVÍZ- ÉS KÉRDÉSSZERKESZTŐ (Saját kvízek & CSV Import)
+    // ------------------------------------------------------------------------
+    Route::post('/quizzes/{quiz}/questions/import', [QuestionController::class, 'importForQuiz'])->name('quizzes.questions.import');
+    Route::post('/quizzes/{quiz}/questions/store', [QuestionController::class, 'storeForQuiz'])->name('questions.storeForQuiz');
+
+    Route::resource('quizzes', QuizManagementController::class);
+    Route::resource('questions', QuestionController::class);
 
 
-    Route::middleware(['auth', 'verified'])->group(function () {
+    // ------------------------------------------------------------------------
+    // 4. PROFIL ÉS EGYÉB OLDALAK
+    // ------------------------------------------------------------------------
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/points', [PageController::class, 'points'])->name('pages.points');
+    Route::post('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+    // ⚠️ EZ A SOR KELL A SZEREPKÖR-VÁLTÁSHOZ:
+    // A profil útvonala a kártyás show nézetre mutasson:
 
-        // 1) JÁTÉK (Dashboard & Kvíz folyamat)
-        Route::get('/dashboard', [QuizController::class, 'dashboard'])->name('dashboard');
-// Játék beállítása konkrét kvíz kiválasztásával
-        Route::get('/quiz/play/{quiz}', [QuizController::class, 'setupQuizPlay'])->name('quiz.setup');
+    // 1. A kártyás nézet megjelenítése a /profile/show URL-en:
+    Route::get('/profile/show', [ProfileController::class, 'show'])->name('profile.show');
+
+    // 2. Opcionális: Ha valaki a sima /profile-ra tévedne, az is ide mutasson:
+    Route::get('/profile', [ProfileController::class, 'show']);
+
+    // 3. Adatfrissítés és a DevTool szerepkörváltó útvonalai:
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::post('/profile/switch-role', [ProfileController::class, 'switchRole'])->name('profile.switch-role');
 
 
-       // Játék főoldal (Kvíz Választó)
-       Route::get('/quiz/play', [QuizController::class, 'showBetForm'])->name('quiz.bet');
+    // ------------------------------------------------------------------------
+    // 5. ADMINISZTRÁCIÓ (Admin jóváhagyások, Kategóriák, Beállítások)
+    // ------------------------------------------------------------------------
+    Route::prefix('admin')->name('admin.')->group(function () {
+        Route::resource('categories', CategoryController::class);
+        Route::resource('settings', SettingController::class);
 
-       // Kedvencnek jelölés AJAX/POST route (opcionális, de hasznos)
-       Route::post('/quizzes/{quiz}/favorite', [QuizController::class, 'toggleFavorite'])->name('quizzes.favorite');
-
-
-        // ⚠️ ITT A HIÁNYZÓ NEVŰ ÚTVONAL:
-        Route::get('/quiz', [QuizController::class, 'showBetForm'])->name('quiz.bet');
-        Route::post('/quiz/start', [QuizController::class, 'start'])->name('quiz.start');
-        Route::get('/quiz/next', [QuizController::class, 'nextQuestion'])->name('quiz.next');
-        Route::post('/quiz/answer', [QuizController::class, 'answer'])->name('quiz.answer');
-        Route::get('/quiz/summary', [QuizController::class, 'summary'])->name('quiz.summary');
-
-        // 🛡️ Admin Bírálati Útvonalak
+        // Kvíz jóváhagyása & elutasítása
         Route::post('/quizzes/{quiz}/approve', [QuizManagementController::class, 'approveQuiz'])->name('quizzes.approve');
         Route::post('/quizzes/{quiz}/reject', [QuizManagementController::class, 'rejectQuiz'])->name('quizzes.reject');
 
-        // 🎯 Kvíz válaszellenőrző / beküldő route
-        Route::post('/quiz/check', [QuizController::class, 'checkAnswer'])->name('quiz.check');
-        // 1. Tétbeállító képernyő (Form)
-        Route::get('/quiz/setup/{quiz}', [QuizController::class, 'setupQuizPlay'])->name('quiz.setup');
+        // 🛡️ Felhasználók listája a Hostadmin számára:
+        Route::get('/admin/users', [UserController::class, 'index'])->name('users.index');
 
-        // 2. Tét levonása & játék indítása (POST)
-        Route::post('/quiz/start/{quiz}', [QuizController::class, 'startQuizPlay'])->name('quiz.start');
-        // 2) KVÍZEK
-        Route::get('/quizzes', [QuizManagementController::class, 'index'])->name('quizzes.index');
-        Route::get('/quizzes/create', [QuizController::class, 'createQuiz'])->name('quizzes.create');
-        Route::post('/quizzes', [QuizController::class, 'storeQuiz'])->name('quizzes.store');
-        Route::get('/quizzes/{quiz}', [QuizManagementController::class, 'show'])->name('quizzes.show');
-        Route::post('/quizzes/{quiz}/toggle-publish', [QuizManagementController::class, 'togglePublish'])->name('quizzes.toggle-publish');
-        Route::post('/quizzes/{quiz}/import-questions', [QuestionController::class, 'importForQuiz'])->name('quizzes.questions.import');
-        Route::get('/quizzes/{quiz}/edit', [QuizController::class, 'edit'])->name('quizzes.edit');
-        Route::put('/quizzes/{quiz}', [QuizController::class, 'update'])->name('quizzes.update');
-
-        // 3) KÉRDÉSBANK
-        Route::resource('questions', QuestionController::class);
-        Route::post('/questions/import', [QuestionController::class, 'import'])->name('questions.import');
-
-// Kérdés hozzáadása és importálása egy konkrét Kvízhez
-        Route::get('/quizzes/{quiz}/questions/create', [QuestionController::class, 'createForQuiz'])->name('quizzes.questions.create');
-        Route::post('/quizzes/{quiz}/questions', [QuestionController::class, 'storeForQuiz'])->name('quizzes.questions.store');
-
-// 🎯 EZ AZ ÚJ SOR HIÁNYZOTT:
-        Route::post('/quizzes/{quiz}/import-questions', [QuestionController::class, 'importForQuiz'])->name('quizzes.questions.import');
-
-        // 4) FELHASZNÁLÓK
-        Route::get('/users', [PageController::class, 'usersComingSoon'])->name('users.index');
-
-        // 5) PROFILOM
-        Route::get('/profile', [UserController::class, 'profile'])->name('profile.show');
-        Route::post('/profile/password', [UserController::class, 'updatePassword'])->name('profile.password');
-        Route::post('/profile/switch-role', [UserController::class, 'switchRole'])->name('profile.switch-role');
-
-        // 6) SZEREZZ PONTOT
-        Route::get('/get-points', [PageController::class, 'points'])->name('pages.points');
-
+        // Kvíz tulajdonjogának átadása (Hostadmin)
+        Route::post('/quizzes/{quiz}/transfer', [QuizManagementController::class, 'transferOwnership'])->name('quizzes.transfer');
     });
-
-// Admin felület (Beállítások és Kategóriák)
-Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {
-    Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
-    Route::put('/settings', [SettingController::class, 'update'])->name('settings.update');
-    Route::resource('categories', CategoryController::class)->except(['create', 'edit', 'show']);
 });
-
-// Kvíznyitó útvonalak
-Route::get('/quizzes/create', [QuizController::class, 'createQuiz'])->name('quizzes.create');
-Route::post('/quizzes', [QuizController::class, 'storeQuiz'])->name('quizzes.store');
 
 require __DIR__.'/auth.php';

@@ -5,62 +5,66 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>BetQuiz - Játék</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { background-color: #0f172a; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .quiz-card { background: #1e293b; border-radius: 16px; border: 1px solid #334155; }
-        .btn-option { background-color: #334155; color: #fff; border: 2px solid transparent; transition: all 0.2s; font-size: 1.1rem; text-align: left; }
-        .btn-option:hover { background-color: #475569; color: #fff; }
-        .btn-correct { background-color: #15803d !important; color: white !important; border-color: #22c55e !important; }
-        .btn-wrong { background-color: #b91c1c !important; color: white !important; border-color: #ef4444 !important; }
-    </style>
+    <!-- Központi Stíluslap -->
+    <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
-<body class="d-flex align-items-center justify-content-center min-vh-100 p-3">
+<body class="play-wrapper">
 
-<div class="container" style="max-width: 650px;">
-    <div class="text-center mb-4">
-        <h1 class="fw-bold text-warning">🎯 BetQuiz Live</h1>
-        <p class="text-secondary">Játékos: {{ auth()->user()->name }}</p>
+<div class="play-container">
+    <div style="text-align: center; margin-bottom: 2rem;">
+        <h1 class="auth-title">🎯 BetQuiz Live</h1>
+        <p style="color: #6b7280; font-weight: 600; margin-top: 0.25rem;">Játékos: {{ auth()->user()->name }}</p>
     </div>
 
     @if($questions->count() > 0)
         <div id="quiz-container">
             @foreach($questions as $index => $question)
-                <div class="quiz-card p-4 mb-4 question-block {{ $index !== 0 ? 'd-none' : '' }}" id="question-{{ $index }}">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span class="badge bg-primary px-3 py-2">{{ $question->category->translated_name }}</span>
-                        <span class="text-secondary fw-bold">Kérdés {{ $index + 1 }} / {{ $questions->count() }}</span>
+                <div class="play-card question-block {{ $index !== 0 ? 'd-none' : '' }}" id="question-{{ $index }}">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <span class="badge-quiz-title">{{ $question->category->translated_name ?? 'Kvíz' }}</span>
+                        <span style="color: #6b7280; font-weight: 700; font-size: 0.875rem;">Kérdés {{ $index + 1 }} / {{ $questions->count() }}</span>
                     </div>
 
-                    <h4 class="mb-4 fs-5">{{ $question->translated_text }}</h4>
+                    <h4 style="font-size: 1.25rem; font-weight: 700; color: #1f2937; margin-bottom: 1.5rem;">{{ $question->translated_text }}</h4>
 
-                    <div class="row g-3">
+                    <!-- KÉRDEZETT KÉP HELYE -->
+                    @if($question->image_path)
+                        <div style="text-align: center; margin-bottom: 1.5rem;">
+                            <img src="{{ asset('storage/' . $question->image_path) }}"
+                                 alt="Kérdés illusztráció"
+                                 class="question-img-live">
+                        </div>
+                    @endif
+
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                         @foreach($question->options->shuffle() as $option)
-                            <div class="col-12">
-                                <button type="button"
-                                        class="btn btn-option w-100 p-3 rounded-3 option-btn"
-                                        data-option-id="{{ $option->id }}"
-                                        data-question-index="{{ $index }}">
-                                    {{ $option->translated_text }}
-                                </button>
-                            </div>
+                            <button type="button"
+                                    class="btn-quiz-option option-btn"
+                                    data-option-id="{{ $option->id }}"
+                                    data-question-index="{{ $index }}">
+                                {{ $option->translated_text }}
+                            </button>
                         @endforeach
                     </div>
 
-                    <div class="alert alert-dismissible mt-4 d-none result-message fw-bold text-center"></div>
+                    <div class="alert-game-msg d-none result-message"></div>
                 </div>
             @endforeach
 
             <!-- Befejező képernyő -->
-            <div id="final-screen" class="quiz-card p-5 text-center d-none">
-                <h2 class="text-success mb-3">🎉 Gratulálunk!</h2>
-                <p class="fs-4">Teljesítetted a kvízt!</p>
-                <p class="fs-5">Eredményed: <span id="final-score" class="fw-bold text-warning">0</span> / {{ $questions->count() }} helyes válasz</p>
-                <a href="{{ route('dashboard') }}" class="btn btn-warning btn-lg fw-bold mt-3">Vissza a Vezérlőpultra 🏠</a>
+            <div id="final-screen" class="play-card d-none" style="text-align: center; padding: 3rem 2rem;">
+                <h2 style="color: #166534; font-size: 1.875rem; font-weight: 800; margin-bottom: 1rem;">🎉 Gratulálunk!</h2>
+                <p style="font-size: 1.25rem; color: #374151; margin-bottom: 0.5rem;">Teljesítetted a kvízt!</p>
+                <p style="font-size: 1.125rem; color: #4b5563; margin-bottom: 2rem;">
+                    Eredményed: <span id="final-score" style="font-weight: 800; color: #4f46e5;">0</span> / {{ $questions->count() }} helyes válasz
+                </p>
+                <a href="{{ route('dashboard') }}" class="btn-primary-purple" style="display: inline-block; text-decoration: none;">
+                    Vissza a Vezérlőpultra 🏠
+                </a>
             </div>
         </div>
     @else
-        <div class="alert alert-danger text-center">Nincsenek elérhető kérdések az adatbázisban!</div>
+        <div class="alert-danger-custom" style="text-align: center;">Nincsenek elérhető kérdések az adatbázisban!</div>
     @endif
 </div>
 
@@ -78,7 +82,6 @@
                 let currentBlock = document.getElementById(`question-${qIndex}`);
                 let buttons = currentBlock.querySelectorAll('.option-btn');
 
-                // Összes gomb letiltása ebben a blokkban, hogy ne lehessen többször kattintani
                 buttons.forEach(b => b.disabled = true);
 
                 fetch('{{ route("quiz.check") }}', {
@@ -95,23 +98,22 @@
                         msgDiv.classList.remove('d-none');
 
                         if(data.is_correct) {
-                            this.classList.add('btn-correct');
-                            msgDiv.classList.add('alert-success');
+                            this.classList.add('btn-quiz-correct');
+                            msgDiv.classList.add('alert-game-success');
                             msgDiv.innerText = "✅ Helyes válasz!";
                             score++;
                         } else {
-                            this.classList.add('btn-wrong');
-                            msgDiv.classList.add('alert-danger');
+                            this.classList.add('btn-quiz-wrong');
+                            msgDiv.classList.add('alert-game-danger');
                             msgDiv.innerText = "❌ Helytelen válasz!";
 
                             buttons.forEach(b => {
                                 if(b.getAttribute('data-option-id') == data.correct_option_id) {
-                                    b.classList.add('btn-correct');
+                                    b.classList.add('btn-quiz-correct');
                                 }
                             });
                         }
 
-                        // 1.8 másodperc múlva áttérés a következő kérdésre
                         setTimeout(() => {
                             currentBlock.classList.add('d-none');
                             let nextIndex = qIndex + 1;

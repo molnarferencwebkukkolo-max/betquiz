@@ -4,45 +4,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BetQuiz - Eredmény</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Központi Stíluslap -->
+    <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+<body class="auth-wrapper">
 
-<div class="w-full max-w-lg bg-white rounded-2xl shadow-xl p-8 text-center border border-gray-100">
+<div class="result-card">
 
     @if($isCorrect)
-        <div class="text-6xl mb-4">🎉</div>
-        <h2 class="text-3xl font-extrabold text-green-600 mb-2">Helyes válasz!</h2>
+        <div class="result-icon">🎉</div>
+        <h2 class="result-title-success">Helyes válasz!</h2>
 
         @if(($quiz['game_mode'] ?? '') === 'odds')
-            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
-                <span class="text-sm text-amber-800 font-medium block mb-1">Várható halmozott nyereményed:</span>
-                <span class="text-3xl font-extrabold text-amber-600">{{ number_format($quiz['current_pot'], 0, ',', ' ') }} PT</span>
+            <div class="reward-box-amber">
+                <span class="reward-label" style="color: #92400e;">Várható halmozott nyereményed:</span>
+                <span class="reward-value" style="color: #d97706;">{{ number_format($quiz['current_pot'], 0, ',', ' ') }} PT</span>
             </div>
         @else
-            <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
-                <span class="text-sm text-green-800 font-medium block mb-1">Jóváírt nyeremény:</span>
-                <span class="text-3xl font-extrabold text-green-700">+{{ number_format($reward, 0, ',', ' ') }} PT</span>
+            <div class="reward-box-green">
+                <span class="reward-label" style="color: #166534;">Jóváírt nyeremény:</span>
+                <span class="reward-value" style="color: #15803d;">+{{ number_format($reward, 0, ',', ' ') }} PT</span>
             </div>
         @endif
     @else
-        <div class="text-6xl mb-4">❌</div>
-        <h2 class="text-3xl font-extrabold text-red-600 mb-2">Sajnos hibás!</h2>
+        <div class="result-icon">❌</div>
+        <h2 class="result-title-danger">Sajnos hibás!</h2>
 
-        <p class="text-gray-600 mb-2">A helyes válasz ez lett volna:</p>
-        <p class="text-lg font-bold text-gray-800 bg-gray-100 p-3 rounded-xl mb-6 inline-block">
+        <p style="color: #4b5563; margin-bottom: 0.5rem;">A helyes válasz ez lett volna:</p>
+        <p class="correct-text-badge">
             {{ $correctText }}
         </p>
 
         @if(($quiz['game_mode'] ?? '') === 'odds')
-            <div class="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-                <span class="text-sm text-red-800 font-medium block mb-1">Az Odds-ra fel! menet véget ért.</span>
-                <span class="text-xl font-bold text-red-600">Elvesztetted a feltett {{ number_format($quiz['initial_bet'], 0, ',', ' ') }} PT-t.</span>
+            <div class="reward-box-red">
+                <span class="reward-label" style="color: #991b1b;">Az Odds-ra fel! menet véget ért.</span>
+                <span style="font-size: 1.25rem; font-weight: 700; color: #dc2626;">Elvesztetted a feltett {{ number_format($quiz['initial_bet'], 0, ',', ' ') }} PT-t.</span>
             </div>
         @endif
     @endif
 
-    <a href="{{ route('quiz.next') }}" class="block w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg rounded-xl shadow-lg transition duration-150">
+    <a href="{{ route('quiz.next') }}" class="btn-result-next">
         ➡️ {{ ($quiz['game_mode'] ?? '') === 'odds' && !$isCorrect ? 'Összegzés megtekintése' : 'Következő kérdés' }}
     </a>
 
