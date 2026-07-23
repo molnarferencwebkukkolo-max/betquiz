@@ -17,16 +17,165 @@ class QuizController extends Controller
     public function dashboard()
     {
         $user = Auth::user();
-        return view('dashboard', compact('user'));
+
+        // 1. Kiemelt / Legújabb publikus kvízek
+        $featuredQuizzes = \App\Models\Quiz::with(['category', 'creator'])
+            ->withCount('questions')
+            ->where('status', 'approved')
+            ->latest()
+            ->take(4)
+            ->get();
+
+        // 2. Saját kvízek
+        $myQuizzes = \App\Models\Quiz::withCount('questions')
+            ->where('creator_id', $user->id)
+            ->latest()
+            ->take(5)
+            ->get();
+
+        // 3. 🛡️ Bírálatra váró kvízek (Csak ha Admin a felhasznaló)
+        $pendingQuizzes = collect();
+        if ($user->isUseradmin()) {
+            $pendingQuizzes = \App\Models\Quiz::with(['category', 'creator'])
+                ->withCount('questions')
+                ->where('status', 'pending')
+                ->latest()
+                ->get();
+        }
+
+        return view('dashboard', compact('user', 'featuredQuizzes', 'myQuizzes', 'pendingQuizzes'));
     }
 
     /**
-     * Tét / Játékindító űrlap
+     * Játék indítása vagy Kvíz Választó Katalógus
      */
-    public function showBetForm()
+    public function showBetForm(Request $request)
     {
-        $categories = class_exists(Category::class) ? Category::all() : [];
-        return view('quiz.bet', compact('categories'));
+        $user = Auth::user();
+
+        // 🎯 1. HA VAN QUIZ_ID A KÉRÉSBEN: EGYBŐL INDÍTJUK A JÁTÉKOT!
+        if ($request->filled('quiz_id')) {
+            $quiz = \App\Models\Quiz::with('questions')->find($request->quiz_id);
+
+            // Ha nem létezik a kvíz vagy nem approved
+            if (!$quiz || $quiz->status !== 'approved') {
+                return redirect()->route('dashboard')->with('error', 'A kiválasztott kvíz nem található vagy nem elérhető.');
+            }
+
+            // Ha nincsenek hozzá kérdések
+            if ($quiz->questions->isEmpty()) {
+                return redirect()->route('dashboard')->with('error', 'Ebben a kvízben még nincsenek kérdések!');
+            }
+
+            // 🚀 EGYBŐL ÁTADJUK A PLAY NÉZETNEK!
+            return view('quiz.play', [
+                'quiz' => $quiz,
+                'user' => $user,
+                'questions' => $quiz->questions,
+            ]);
+        }
+
+        // 🔍 2. HA NINCS QUIZ_ID: KATALÓGUS / SZŰRŐ NÉZET
+        $categories = \App\Models\Category::all();
+
+        $query = \App\Models\Quiz::with(['category', 'creator'])
+            ->withCount('questions')
+            ->where('status', 'approved');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('category_id') && $request->category_id !== 'all') {
+            $query->where('category_id', $request->category_id);
+        }
+
+        $quizzes = $query->latest()->paginate(12)->withQueryString();
+
+        return view('quiz.bet', compact('categories', 'quizzes', 'user'));
+    }
+
+    /**
+     * 1. Tétbeállító képernyő megjelenítése
+     */
+    public function setupQuizPlay(Quiz $quiz)
+    {
+        $user = Auth::user();
+
+        if ($quiz->status !== 'approved') {
+            return redirect()->route('dashboard')->with('error', 'Ez a kvíz jelenleg nem elérhető.');
+        }
+
+        // Visszaadjuk a tétbeállító nézetet
+        return view('quiz.show', compact('quiz', 'user'));
+    }
+
+    /**
+     * Tét levonása, kérdésszám és játékmód beállítása
+     */
+    public function startQuizPlay(Request $request, Quiz $quiz)
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        // Validáció: mód, kérdésszám, nehézség és tét
+        $request->validate([
+            'mode' => 'required|in:bet,odds',
+            'question_count' => 'nullable|integer|min:1|max:20',
+            'difficulty' => 'required|in:easy,medium,hard',
+            'bet_amount' => 'required|integer|min:100|max:' . max($user->points, 100),
+        ], [
+            'bet_amount.max' => 'Nincs elegendő pontod ehhez a téthez!',
+        ]);
+
+        $betAmount = (int) $request->bet_amount;
+
+        if ($user->points < $betAmount) {
+            return back()->withErrors(['bet_amount' => 'Nincs elegendő pontod!']);
+        }
+
+        // Alap nehézségi szorzók
+        $baseMultipliers = [
+            'easy'   => 1.3,
+            'medium' => 1.5,
+            'hard'   => 2.0,
+        ];
+
+        $difficulty = $request->difficulty;
+        $baseMultiplier = $baseMultipliers[$difficulty] ?? 1.5;
+        $questionCount = (int) ($request->question_count ?? 5);
+
+        // HA ODDS MÓD: A szorzó skálázódik a válaszolandó kérdések számával
+        if ($request->mode === 'odds') {
+            // Kombinált odds számítás (például kérdésszám alapján növekvő eredő szorzó)
+            $finalMultiplier = round(pow($baseMultiplier, $questionCount / 3), 2);
+        } else {
+            // FIX TÉTES MÓD
+            $finalMultiplier = $baseMultiplier;
+        }
+
+        // Tét levonása
+        $user->decrement('points', $betAmount);
+
+        // Munkamenet elmentése a játékhoz
+        session([
+            'quiz_game' => [
+                'quiz_id' => $quiz->id,
+                'mode' => $request->mode,
+                'difficulty' => $difficulty,
+                'question_count' => $questionCount,
+                'multiplier' => $finalMultiplier,
+                'bet_amount' => $betAmount,
+                'potential_win' => (int) ($betAmount * $finalMultiplier),
+                'score' => 0,
+            ]
+        ]);
+
+        return redirect()->route('quiz.bet', ['quiz_id' => $quiz->id]);
     }
 
     /**
@@ -390,4 +539,41 @@ class QuizController extends Controller
 
         return redirect()->route('quizzes.show', $quiz->id)->with('success', '✏️ Kvíz adatai sikeresen frissítve!');
     }
+
+/**
+ * Kvíz jóváhagyása (Admin)
+ */
+public function approveQuiz(Quiz $quiz)
+{
+    $user = Auth::user();
+
+    // Jogosultság ellenőrzése (csak admin)
+    if (!$user->isUseradmin()) {
+        abort(403, 'Nincs adminisztrátori jogosultságod!');
+    }
+
+    $quiz->update([
+        'status' => 'approved'
+    ]);
+
+    return back()->with('success', '✅ Kvíz sikeresen jóváhagyva és publikálva!');
+}
+
+/**
+ * Kvíz elutasítása (Admin)
+ */
+public function rejectQuiz(Quiz $quiz)
+{
+    $user = Auth::user();
+
+    if (!$user->isUseradmin()) {
+        abort(403, 'Nincs adminisztrátori jogosultságod!');
+    }
+
+    $quiz->update([
+        'status' => 'rejected'
+    ]);
+
+    return back()->with('error', '❌ Kvíz elutasítva.');
+}
 } // 🎯 ITT VAN A HELYES OSZTÁLY LEZÁRÁS A FÁJL VÉGÉN!

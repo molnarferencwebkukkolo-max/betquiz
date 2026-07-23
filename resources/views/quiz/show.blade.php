@@ -3,83 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BetQuiz - Kérdés</title>
+    <title>Játék Beállítása - {{ $quiz->title }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+<body class="bg-gray-100 min-h-screen pb-12">
 
 @include('layouts.navigation')
 
-<div class="w-full max-w-2xl bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+<div class="max-w-2xl mx-auto px-4 py-10">
 
-    <!-- Fejléc info -->
-    <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
-    <span class="text-sm font-bold text-gray-500 uppercase tracking-wider">
-        Kérdés: <span class="text-indigo-600 text-lg">{{ $quiz['current_index'] + 1 }}</span> / {{ $quiz['total_questions'] }}
-    </span>
+    <a href="{{ route('dashboard') }}" class="inline-flex items-center text-xs font-bold text-gray-500 hover:text-indigo-600 mb-6 transition">
+        ← Vissza a Műszerfalra
+    </a>
 
-        @if($quiz['game_mode'] === 'odds')
-            <span class="bg-amber-100 text-amber-800 font-bold px-3 py-1 rounded-lg text-sm border border-amber-200">
-            🔥 Halmozott esély: {{ number_format($quiz['current_pot'], 0, ',', ' ') }} PT ({{ $quiz['multiplier'] }}x)
-        </span>
-        @else
-            <span class="bg-amber-100 text-amber-800 font-bold px-3 py-1 rounded-lg text-sm border border-amber-200">
-            💰 Tét: {{ number_format($quiz['bet_per_question'], 0, ',', ' ') }} PT ({{ $quiz['multiplier'] }}x)
-        </span>
-        @endif
-    </div>
+    <div class="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
 
-    <!-- Kérdés Szövege / Képe -->
-    <div class="text-center mb-8">
-        @if($question->image_path)
-            <img src="{{ asset('storage/' . $question->image_path) }}" alt="Kérdés képe" class="max-h-64 mx-auto rounded-2xl shadow-md mb-4 border">
-        @endif
-
-        @php
-            $qText = $question->question_text;
-            if (is_array($qText)) {
-                $qText = $qText['hu'] ?? reset($qText);
-            }
-        @endphp
-
-        @if($qText)
-            <h2 class="text-2xl font-bold text-gray-800">
-                {{ $qText }}
-            </h2>
-        @endif
-    </div>
-    <!--  <pre class="text-xs bg-gray-200 p-2 rounded mb-4">{{ print_r($question->toArray(), true) }}</pre>-->
-
-    <!-- Válaszlehetőségek form -->
-    <form action="{{ route('quiz.answer') }}" method="POST" class="space-y-4">
-        @csrf
-        <input type="hidden" name="question_id" value="{{ $question->id }}">
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            @foreach($question->options as $option)
-                @php
-                    $optText = $option->option_text ?? $option->text ?? $option->name;
-                    if (is_array($optText)) {
-                        $optText = $optText['hu'] ?? reset($optText);
-                    }
-                @endphp
-
-                <button type="submit" name="answer" value="{{ $optText ?? $option->id }}"
-                        class="w-full p-4 text-left font-semibold text-gray-700 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 border-2 border-gray-200 rounded-xl transition duration-150 shadow-sm active:scale-95 flex flex-col items-center justify-center gap-2">
-
-                    @if($option->image_path)
-                        <img src="{{ asset('storage/' . $option->image_path) }}" alt="Opció képe" class="max-h-32 rounded-lg border">
-                    @endif
-
-                    @if($optText)
-                        <span>{{ $optText }}</span>
-                    @endif
-                </button>
-            @endforeach
+        <div class="text-center mb-8">
+                <span class="inline-block bg-indigo-50 text-indigo-700 text-xs font-extrabold px-3 py-1 rounded-full uppercase mb-2">
+                    {{ is_array($quiz->category->name ?? null) ? ($quiz->category->name['hu'] ?? reset($quiz->category->name)) : ($quiz->category->name ?? 'Általános') }}
+                </span>
+            <h1 class="text-2xl font-black text-gray-800 leading-tight mb-2">{{ $quiz->title }}</h1>
+            <p class="text-xs text-gray-500">{{ $quiz->description ?? 'Nincs külön leírás megadva.' }}</p>
         </div>
-    </form>
 
+        <!-- TÉT, NEHÉZSÉG ÉS JÁTÉKMÓD FORM -->
+        <form action="{{ route('quiz.start', $quiz->id) }}" method="POST" class="space-y-6">
+            @csrf
 
+            <!-- 1. JÁTÉKMÓD -->
+            <div>
+                <label class="block text-xs font-extrabold text-gray-400 uppercase tracking-wider mb-3">1. Válassz Játékmódot</label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <label class="relative border-2 border-gray-200 rounded-2xl p-4 flex items-center gap-3 cursor-pointer hover:border-indigo-500 transition has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50/50">
+                        <input type="radio" name="mode" value="bet" checked class="text-indigo-600 focus:ring-indigo-500">
+                        <div>
+                            <h4 class="font-extrabold text-gray-800 text-sm">🎯 Fixed Tétes Mód</h4>
+                            <p class="text-[11px] text-gray-400 mt-0.5">Fix tét alapon játszol.</p>
+                        </div>
+                    </label>
+
+                    <label class="relative border-2 border-gray-200 rounded-2xl p-4 flex items-center gap-3 cursor-pointer hover:border-indigo-500 transition has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50/50">
+                        <input type="radio" name="mode" value="odds" class="text-indigo-600 focus:ring-indigo-500">
+                        <div>
+                            <h4 class="font-extrabold text-gray-800 text-sm">🎲 Odds-alapú Mód</h4>
+                            <p class="text-[11px] text-gray-400 mt-0.5">Szorzók alapján nyerhetsz.</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 2. NEHÉZSÉGI SZINT ÉS SZORZÓ -->
+            <div>
+                <label class="block text-xs font-extrabold text-gray-400 uppercase tracking-wider mb-3">2. Válassz Nehézséget (Nyereményszorzó)</label>
+                <div class="grid grid-cols-3 gap-3">
+
+                    <!-- Könnyű -->
+                    <label class="relative border-2 border-gray-200 rounded-2xl p-3 text-center cursor-pointer hover:border-green-500 transition has-[:checked]:border-green-500 has-[:checked]:bg-green-50">
+                        <input type="radio" name="difficulty" value="easy" class="sr-only">
+                        <span class="text-xl block mb-1">🟢</span>
+                        <span class="font-extrabold text-gray-800 text-xs block">Könnyű</span>
+                        <span class="text-xs font-black text-green-600">1.3x szorzó</span>
+                    </label>
+
+                    <!-- Közepes -->
+                    <label class="relative border-2 border-gray-200 rounded-2xl p-3 text-center cursor-pointer hover:border-amber-500 transition has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50">
+                        <input type="radio" name="difficulty" value="medium" checked class="sr-only">
+                        <span class="text-xl block mb-1">🟡</span>
+                        <span class="font-extrabold text-gray-800 text-xs block">Közepes</span>
+                        <span class="text-xs font-black text-amber-600">1.5x szorzó</span>
+                    </label>
+
+                    <!-- Nehéz -->
+                    <label class="relative border-2 border-gray-200 rounded-2xl p-3 text-center cursor-pointer hover:border-red-500 transition has-[:checked]:border-red-500 has-[:checked]:bg-red-50">
+                        <input type="radio" name="difficulty" value="hard" class="sr-only">
+                        <span class="text-xl block mb-1">🔴</span>
+                        <span class="font-extrabold text-gray-800 text-xs block">Nehéz</span>
+                        <span class="text-xs font-black text-red-600">2.0x szorzó</span>
+                    </label>
+
+                </div>
+            </div>
+
+            <!-- KÉRDÉSSZÁM VÁLASZTÓ (Alapból rejtve: 'hidden') -->
+            <div id="question-count-section" class="mt-4 hidden transition-all">
+                <label class="block text-xs font-extrabold text-gray-400 uppercase tracking-wider mb-2">
+                    Hány kérdésre szeretnél válaszolni?
+                </label>
+                <select name="question_count" class="w-full px-4 py-3 rounded-2xl border border-gray-200 font-bold text-gray-800 text-sm focus:ring-2 focus:ring-indigo-500">
+                    <option value="5" selected>5 Kérdés</option>
+                    <option value="10">10 Kérdés</option>
+                    <option value="15">15 Kérdés</option>
+                    <option value="20">20 Kérdés</option>
+                </select>
+            </div>
+
+            <!-- 🔮 JAVASCRIPT: Csak Odds mód esetén jeleníti meg a kérdésszámot -->
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    const modeInputs = document.querySelectorAll('input[name="mode"]');
+                    const questionSection = document.getElementById('question-count-section');
+
+                    function toggleQuestionCount() {
+                        const selectedMode = document.querySelector('input[name="mode"]:checked')?.value;
+                        if (selectedMode === 'odds') {
+                            questionSection.classList.remove('hidden');
+                        } else {
+                            questionSection.classList.add('hidden');
+                        }
+                    }
+
+                    modeInputs.forEach(input => {
+                        input.addEventListener('change', toggleQuestionCount);
+                    });
+
+                    // Betöltéskor is lefut
+                    toggleQuestionCount();
+                });
+            </script>
+
+            <!-- 3. TÉT MEGADÁSA -->
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-xs font-extrabold text-gray-400 uppercase tracking-wider">3. Megadott Tét (PT)</label>
+                    <span class="text-xs font-bold text-gray-400">Egyenleged: <strong class="text-indigo-600">{{ number_format($user->points ?? 0, 0, ',', ' ') }} PT</strong></span>
+                </div>
+
+                <input type="number" name="bet_amount" min="100" max="{{ $user->points ?? 1000 }}" value="1000" step="100" required
+                       class="w-full px-5 py-3 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 font-black text-gray-800 text-lg">
+            </div>
+
+            <!-- INDÍTÁS GOMB -->
+            <button type="submit" class="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black rounded-2xl shadow-lg transition text-base text-center">
+                🚀 Tét Rakása & Játék Indítása!
+            </button>
+
+        </form>
+
+    </div>
 
 </div>
 

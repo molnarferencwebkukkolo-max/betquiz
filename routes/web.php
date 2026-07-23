@@ -23,6 +23,16 @@ Route::get('/', function () {
 
         // 1) JÁTÉK (Dashboard & Kvíz folyamat)
         Route::get('/dashboard', [QuizController::class, 'dashboard'])->name('dashboard');
+// Játék beállítása konkrét kvíz kiválasztásával
+        Route::get('/quiz/play/{quiz}', [QuizController::class, 'setupQuizPlay'])->name('quiz.setup');
+
+
+       // Játék főoldal (Kvíz Választó)
+       Route::get('/quiz/play', [QuizController::class, 'showBetForm'])->name('quiz.bet');
+
+       // Kedvencnek jelölés AJAX/POST route (opcionális, de hasznos)
+       Route::post('/quizzes/{quiz}/favorite', [QuizController::class, 'toggleFavorite'])->name('quizzes.favorite');
+
 
         // ⚠️ ITT A HIÁNYZÓ NEVŰ ÚTVONAL:
         Route::get('/quiz', [QuizController::class, 'showBetForm'])->name('quiz.bet');
@@ -31,6 +41,17 @@ Route::get('/', function () {
         Route::post('/quiz/answer', [QuizController::class, 'answer'])->name('quiz.answer');
         Route::get('/quiz/summary', [QuizController::class, 'summary'])->name('quiz.summary');
 
+        // 🛡️ Admin Bírálati Útvonalak
+        Route::post('/quizzes/{quiz}/approve', [QuizManagementController::class, 'approveQuiz'])->name('quizzes.approve');
+        Route::post('/quizzes/{quiz}/reject', [QuizManagementController::class, 'rejectQuiz'])->name('quizzes.reject');
+
+        // 🎯 Kvíz válaszellenőrző / beküldő route
+        Route::post('/quiz/check', [QuizController::class, 'checkAnswer'])->name('quiz.check');
+        // 1. Tétbeállító képernyő (Form)
+        Route::get('/quiz/setup/{quiz}', [QuizController::class, 'setupQuizPlay'])->name('quiz.setup');
+
+        // 2. Tét levonása & játék indítása (POST)
+        Route::post('/quiz/start/{quiz}', [QuizController::class, 'startQuizPlay'])->name('quiz.start');
         // 2) KVÍZEK
         Route::get('/quizzes', [QuizManagementController::class, 'index'])->name('quizzes.index');
         Route::get('/quizzes/create', [QuizController::class, 'createQuiz'])->name('quizzes.create');
