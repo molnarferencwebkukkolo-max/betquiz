@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Quiz;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Category;
 
 class QuizManagementController extends Controller
 {
@@ -42,7 +43,8 @@ class QuizManagementController extends Controller
         // Betöltjük a Kvízhez tartozó kérdéseket az opcióikkal együtt
         $quiz->load(['category', 'creator', 'questions.options']);
 
-        return view('quizzes.show', compact('quiz', 'user'));
+
+        return view('quiz.show', compact('quiz', 'user'));
     }
 
     /**
@@ -86,45 +88,45 @@ class QuizManagementController extends Controller
     /**
      * Admin: Kvíz jóváhagyása
      */
-    public function approve(Quiz $quiz)
+    public function approveQuiz(Quiz $quiz)
     {
         $quiz->update(['status' => 'approved']);
-
-        return back()->with('success', 'Kvíz sikeresen jóváhagyva!');
+        return back()->with('success', 'Kvíz elfogadva!');
     }
 
-    public function reject(Request $request, Quiz $quiz)
+    public function rejectQuiz(Quiz $quiz)
     {
-        // Opcionálisan bekérhetsz indoklást is ($request->validate(['rejection_reason' => 'nullable|string']);)
-        $quiz->update([
-            'status' => 'rejected',
-            'rejection_reason' => $request->input('rejection_reason'),
-        ]);
-
-        return back()->with('success', 'Kvíz elutasítva.');
+        $quiz->update(['status' => 'rejected']);
+        return back()->with('error', 'Kvíz elutasítva!');
     }
 
 
     /**
-     * Admin: Kvíz elutasítása
+     * Kvíz szerkesztő űrlap megjelenítése
      */
-    public function rejectQuiz(Request $request, Quiz $quiz)
+    public function edit(Quiz $quiz)
     {
-        // Admin jogosultság ellenőrzése
-        if (auth()->user()->role !== 'admin') {
-            abort(403, 'Nincs jogosultságod a művelethez.');
-        }
+        $categories = Category::all();
 
-        $request->validate([
-            'rejection_reason' => 'required|string|max:500',
+        return view('quizzes.edit', compact('quiz', 'categories'));
+        // Ha egyes számú mappában van az szerkesztő nézeted, akkor: view('quiz.edit', ...)
+    }
+
+    /**
+     * Kvíz adatinak frissítése
+     */
+    public function update(Request $request, Quiz $quiz)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'category_id' => 'required|exists:categories,id',
         ]);
 
-        $quiz->update([
-            'status' => 'rejected',
-            'rejection_reason' => $request->rejection_reason,
-        ]);
+        $quiz->update($validated);
 
-        return redirect()->back()->with('success', 'Kvíz elutasítva.');
+        return redirect()->route('quizzes.show', $quiz->id)
+            ->with('success', 'Kvíz sikeresen frissítve!');
     }
 
     /**
