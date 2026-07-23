@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $quiz->title }} - BetQuiz</title>
+    <!-- Központi Stíluslap -->
+    <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen pb-12">
@@ -78,7 +80,7 @@
                 </a>
 
                 <!-- 🚀 Publikálás / Visszavonás Gomb -->
-                <form action="{{ route('quizzes.toggle-publish', $quiz->id) }}" method="POST">
+                <form action="{{ route('quizzes.update', $quiz->id) }}" method="POST">
                     @csrf
                     @if($isPublished)
                         <button type="submit" class="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white font-extrabold rounded-2xl shadow transition flex items-center gap-2 text-sm">
@@ -96,8 +98,8 @@
                 </form>
 
                 <!-- ➕ Új Kérdés Gomb -->
-                <a href="{{ route('quizzes.questions.create', $quiz->id) }}" class="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-2xl shadow-lg transition flex items-center gap-2 text-sm">
-                    ➕ Új Kérdés
+                <a href="{{ route('questions.create', ['quiz_id' => $quiz->id]) }}" class="btn-primary">
+                    ➕ Új kérdés hozzáadása
                 </a>
             </div>
         </div>

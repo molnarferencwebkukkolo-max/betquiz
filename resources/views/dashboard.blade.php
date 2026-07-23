@@ -30,7 +30,7 @@
     </div>
 
     <!-- 🛡️ ADMIN BÍRÁLATI SZEKCIÓ (Csak Adminoknak jelenik meg, ha van elbírálandó kvíz) -->
-    @if(Auth::user()->isUseradmin() && $pendingQuizzes->isNotEmpty())
+    @if($user->isUseradmin() && $pendingQuizzes->isNotEmpty())
         <div class="admin-review-box">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
@@ -43,42 +43,29 @@
             </div>
 
             <div class="admin-review-grid">
-                @foreach($pendingQuizzes as $pQuiz)
-                    @php
-                        $pCatName = is_array($pQuiz->category->name ?? null)
-                            ? ($pQuiz->category->name['hu'] ?? reset($pQuiz->category->name))
-                            : ($pQuiz->category->name ?? 'Általános');
-                    @endphp
-                    <div class="review-item-card">
+                @foreach ($pendingQuizzes as $pendingQuiz)
+                    <div class="flex items-center justify-between border-b pb-4">
                         <div>
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem;">
-                                <span style="background-color: #fef3c7; color: #92400e; font-size: 0.625rem; font-weight: 900; padding: 0.25rem 0.625rem; border-radius: 9999px; text-transform: uppercase;">
-                                    {{ $pCatName }}
-                                </span>
-                                <span style="font-size: 0.75rem; color: #9ca3af; font-weight: 700;">👤 {{ $pQuiz->creator->name ?? 'Ismeretlen' }}</span>
-                            </div>
-                            <h3 style="font-weight: 800; color: #1f2937; font-size: 1rem; margin-bottom: 0.25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ $pQuiz->title }}</h3>
-                            <p style="font-size: 0.75rem; color: #6b7280; margin-bottom: 0.75rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ $pQuiz->description ?? 'Nincs leírás.' }}</p>
-                            <p style="font-size: 0.75rem; color: #9ca3af; font-weight: 700; margin-bottom: 1rem;">❓ {{ $pQuiz->questions_count }} kérdés van benne</p>
+                            <span class="font-semibold text-lg">{{ $pendingQuiz->title }}</span>
+                            <span class="text-sm text-gray-500 ml-2">({{ $pendingQuiz->category->name[app()->getLocale()] ?? $pendingQuiz->category->name['hu'] }})</span>
+                            <p class="text-sm text-gray-600">{{ __('Készítette:') }} {{ $pendingQuiz->creator->name }}</p>
                         </div>
-
-                        <!-- BÍRÁLATI GOMBOK -->
-                        <div style="display: flex; align-items: center; gap: 0.5rem; padding-top: 0.75rem; border-top: 1px solid #f3f4f6;">
-                            <!-- Elfogadás -->
-                            <form action="{{ route('quizzes.approve', $pQuiz->id) }}" method="POST" style="width: 50%;">
+                        <div class="flex space-x-2">
+                            <!-- Approve Form -->
+                            <form action="{{ route('admin.quizzes.approve', $pendingQuiz) }}" method="POST">
                                 @csrf
-                                <button type="submit" onclick="return confirm('Biztosan jóváhagyod és publikálod ezt a kvízt?')"
-                                        style="width: 100%; padding: 0.5rem; background-color: #16a34a; color: #ffffff; font-weight: 800; font-size: 0.75rem; border-radius: 0.75rem; border: none; cursor: pointer;">
-                                    ✅ Elfogad
+                                @method('PATCH')
+                                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">
+                                    {{ __('Jóváhagyás') }}
                                 </button>
                             </form>
 
-                            <!-- Elutasítás -->
-                            <form action="{{ route('quizzes.reject', $pQuiz->id) }}" method="POST" style="width: 50%;">
+                            <!-- Reject Form -->
+                            <form action="{{ route('admin.quizzes.reject', $pendingQuiz) }}" method="POST">
                                 @csrf
-                                <button type="submit" onclick="return confirm('Biztosan elutasítod ezt a kvízt?')"
-                                        style="width: 100%; padding: 0.5rem; background-color: #dc2626; color: #ffffff; font-weight: 800; font-size: 0.75rem; border-radius: 0.75rem; border: none; cursor: pointer;">
-                                    ❌ Elutasít
+                                @method('PATCH')
+                                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm">
+                                    {{ __('Elutasítás') }}
                                 </button>
                             </form>
                         </div>

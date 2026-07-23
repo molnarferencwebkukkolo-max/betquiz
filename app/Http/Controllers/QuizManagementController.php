@@ -86,20 +86,24 @@ class QuizManagementController extends Controller
     /**
      * Admin: Kvíz jóváhagyása
      */
-    public function approveQuiz(Quiz $quiz)
+    public function approve(Quiz $quiz)
     {
-        // Admin jogosultság ellenőrzése
-        if (auth()->user()->role !== 'admin') {
-            abort(403, 'Nincs jogosultságod a művelethez.');
-        }
+        $quiz->update(['status' => 'approved']);
 
+        return back()->with('success', 'Kvíz sikeresen jóváhagyva!');
+    }
+
+    public function reject(Request $request, Quiz $quiz)
+    {
+        // Opcionálisan bekérhetsz indoklást is ($request->validate(['rejection_reason' => 'nullable|string']);)
         $quiz->update([
-            'status' => 'approved',
-            'rejection_reason' => null,
+            'status' => 'rejected',
+            'rejection_reason' => $request->input('rejection_reason'),
         ]);
 
-        return redirect()->back()->with('success', 'Kvíz sikeresen jóváhagyva!');
+        return back()->with('success', 'Kvíz elutasítva.');
     }
+
 
     /**
      * Admin: Kvíz elutasítása

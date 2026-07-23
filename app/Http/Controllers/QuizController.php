@@ -28,13 +28,31 @@ class QuizController extends Controller
             ->take(4)
             ->get();
 
-        $myQuizzes = Quiz::withCount('questions')
+        $myQuizzes = Quiz::with(['category'])
+            ->withCount('questions')
             ->where('creator_id', $user->id)
             ->latest()
             ->take(5)
             ->get();
 
-        return view('dashboard', compact('featuredQuizzes', 'myQuizzes', 'user'));
+        // Alapértelmezetten üres kollekció,
+        // így nem admin felhasználónál sem lesz undefined variable hiba.
+        $pendingQuizzes = collect();
+
+        if ($user->isUseradmin()) {
+            $pendingQuizzes = Quiz::with(['category', 'creator'])
+                ->withCount('questions')
+                ->where('status', 'pending')
+                ->latest()
+                ->get();
+        }
+
+        return view('dashboard', compact(
+            'featuredQuizzes',
+            'myQuizzes',
+            'pendingQuizzes',
+            'user'
+        ));
     }
 
     /**
