@@ -1,53 +1,76 @@
-<nav class="main-navbar">
-    <div class="main-navbar-container">
-        <!-- Logo / Főoldal link -->
-        <a href="{{ route('dashboard') }}" class="nav-brand">
-            🎯 BetQuiz
-        </a>
+<header class="nav-header">
+    <div class="nav-container">
+        <div class="nav-wrapper">
 
-        <!-- Menüpontok csoportja -->
-        <div class="nav-links-group">
-
-            <!-- 1. Minden bejelentkezett felhasználó által látható menüpontok -->
-            <a href="{{ route('quiz.bet') }}" class="nav-link-item {{ request()->routeIs('quiz.*') ? 'active' : '' }}">
-                🎮 JÁTÉK
-            </a>
-
-            <a href="{{ route('quizzes.index') }}" class="nav-link-item {{ request()->routeIs('quizzes.*') ? 'active' : '' }}">
-                📋 Kvízeim
-            </a>
-
-            <!-- 2. USERADMIN & HOSTADMIN által látható menüpontok (Kérdésbank) -->
-            @if(auth()->check() && (auth()->user()->isUseradmin() || auth()->user()->isHostadmin()))
-                <a href="{{ route('questions.index') }}" class="nav-link-item {{ request()->routeIs('questions.*') ? 'active' : '' }}" style="color: #d97706;">
-                    ⚙️ Kérdésbank
+            <!-- Bal oldal: Logo + Navigációs Linkek -->
+            <div style="display: flex; align-items: center; gap: 2rem;">
+                <!-- Logo -->
+                <a href="{{ route('dashboard') }}" class="nav-brand">
+                    <span>BetQuiz</span>
                 </a>
-            @endif
 
-            <!-- 3. KIZÁRÓLAG HOSTADMIN által látható menüpont (Felhasználók - Coming Soon) -->
-            @if(auth()->check() && auth()->user()->isHostadmin())
-                <a href="#" onclick="alert('Felhasználók kezelése: Coming Soon!'); return false;" class="nav-link-item" style="color: #dc2626; opacity: 0.8;" title="Hamarosan érkezik">
-                    🛡️ Felhasználók <span style="font-size: 0.65rem; background-color: #ef4444; color: white; padding: 2px 6px; border-radius: 9999px; vertical-align: middle; margin-left: 2px;">SOON</span>
+                <!-- Főmenü linkek -->
+                <nav style="display: flex; align-items: center; gap: 0.5rem;">
+                    <!-- Dashboard -->
+                    <a href="{{ route('dashboard') }}"
+                       class="nav-link-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                        Dashboard
+                    </a>
+
+                    <!-- Játék (Katalógus) -->
+                    <a href="{{ route('quizzes.index') }}"
+                       class="nav-link-item {{ request()->routeIs('quizzes.*') || request()->routeIs('quiz.*') ? 'active' : '' }}">
+                        🎮 Játék
+                    </a>
+
+                    <!-- Kvízeim (Alkotói felület) -->
+                    <a href="{{ route('my-quizzes.index') }}"
+                       class="nav-link-item {{ request()->routeIs('my-quizzes.*') ? 'active' : '' }}">
+                        📝 Kvízeim
+                    </a>
+
+                    <!-- Szerezz pontot -->
+                    <a href="{{ route('pages.points') }}"
+                       class="nav-btn-points">
+                        ⭐ Szerezz pontot
+                    </a>
+
+                    <!-- ADMIN / HOSTADMIN Menüpontok -->
+                    @if(auth()->check() && (auth()->user()->isUseradmin() || auth()->user()->isHostadmin()))
+                        <a href="{{ route('questions.index') }}"
+                           class="nav-link-item nav-link-purple {{ request()->routeIs('questions.*') ? 'active' : '' }}">
+                            📚 Kérdésbank
+                        </a>
+
+                        <span class="badge-no-quiz" style="cursor: not-allowed; opacity: 0.7;" title="Hamarosan érkezik">
+                            👥 Felhasználók
+                        </span>
+                    @endif
+                </nav>
+            </div>
+
+            <!-- Jobb oldal: Egyenleg + Felhasználó + Kijelentkezés -->
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <!-- Zseton / Pontszám kijelző -->
+                <div class="nav-badge-tokens">
+                    <span>💰</span>
+                    <span>{{ number_format(auth()->user()->points ?? 0) }} PT</span>
+                </div>
+
+                <!-- Profil link -->
+                <a href="{{ route('profile.show') }}" class="nav-link-item">
+                    👤 {{ Auth::user()->name }}
                 </a>
-            @endif
 
-            <!-- 4. Profilom (Minden bejelentkezett felhasználónak) -->
-            <a href="{{ route('profile.show') }}" class="nav-link-item {{ request()->routeIs('profile.*') ? 'active' : '' }}">
-                👤 Profilom
-            </a>
+                <!-- Kijelentkezés gomb -->
+                <form method="POST" action="{{ route('logout') }}" style="margin: 0;">
+                    @csrf
+                    <button type="submit" class="nav-btn-logout">
+                        🚪 Kijelentkezés
+                    </button>
+                </form>
+            </div>
 
-            <!-- 5. Egyenleg megjelenítése -->
-            <span class="nav-badge-points">
-                🪙 {{ number_format(auth()->user()->points ?? 0, 0, ',', ' ') }} PT
-            </span>
-
-            <!-- 6. Kijelentkezési űrlap -->
-            <form method="POST" action="{{ route('logout') }}" style="display: inline;">
-                @csrf
-                <button type="submit" class="btn-nav-logout">
-                    Kijelentkezés
-                </button>
-            </form>
         </div>
     </div>
-</nav>
+</header>

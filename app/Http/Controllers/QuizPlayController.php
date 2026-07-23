@@ -51,7 +51,7 @@ class QuizPlayController extends Controller
             ->sortBy(fn($m) => array_search($m->id, $session['question_ids']))
             ->values();
 
-        return view('quiz.play', [
+        return view('play.play', [
             'quiz' => $quiz,
             'questions' => $questions,
             'session' => $session,
@@ -82,5 +82,24 @@ class QuizPlayController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
+    }
+
+    /**
+     * 🏁 Játék végi összegzés / eredményjelző képernyő
+     */
+    public function summary(Quiz $quiz)
+    {
+        $session = session('quiz_session');
+
+        // Ha lejárt vagy nincs session, visszaküldjük a katalógusba
+        if (!$session || $session['quiz_id'] !== $quiz->id) {
+            return redirect()->route('quizzes.index');
+        }
+
+        return view('play.summary', [
+            'quiz' => $quiz,
+            'session' => $session,
+            'user' => auth()->user(),
+        ]);
     }
 }

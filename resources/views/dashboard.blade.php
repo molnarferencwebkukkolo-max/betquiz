@@ -13,7 +13,9 @@
 
 <div class="nav-container" style="padding-top: 2rem; padding-bottom: 2rem;">
 
-    <!-- Üdvözlő Fejléc & Egyenleg -->
+    <!-- ==========================================================================
+       1. ÜDVÖZLŐ FEJLÉC & EGYENLEG
+       ========================================================================== -->
     <div class="purple-banner" style="margin-bottom: 2rem; display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
         <div>
             <h1 style="font-size: 1.875rem; font-weight: 900; margin-bottom: 0.25rem;">Üdv újra, {{ $user->name }}! 👋</h1>
@@ -29,9 +31,11 @@
         </div>
     </div>
 
-    <!-- 🛡️ ADMIN BÍRÁLATI SZEKCIÓ (Csak Adminoknak jelenik meg, ha van elbírálandó kvíz) -->
-    @if($user->isUseradmin() && $pendingQuizzes->isNotEmpty())
-        <div class="admin-review-box">
+    <!-- ==========================================================================
+       2. 🛡️ ADMIN BÍRÁLATI SZEKCIÓ (Csak Adminoknak, ha van elbírálandó kvíz)
+       ========================================================================== -->
+    @if(($user->isUseradmin() || $user->isHostadmin()) && isset($pendingQuizzes) && $pendingQuizzes->isNotEmpty())
+        <div class="admin-review-box" style="margin-bottom: 2rem;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
                     <span style="font-size: 1.5rem;">⏳</span>
@@ -44,28 +48,30 @@
 
             <div class="admin-review-grid">
                 @foreach ($pendingQuizzes as $pendingQuiz)
-                    <div class="flex items-center justify-between border-b pb-4">
+                    <div style="padding: 1rem; border-radius: 1rem; background-color: #ffffff; border: 1px solid #fde68a; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
                         <div>
-                            <span class="font-semibold text-lg">{{ $pendingQuiz->title }}</span>
-                            <span class="text-sm text-gray-500 ml-2">({{ $pendingQuiz->category->name[app()->getLocale()] ?? $pendingQuiz->category->name['hu'] }})</span>
-                            <p class="text-sm text-gray-600">{{ __('Készítette:') }} {{ $pendingQuiz->creator->name }}</p>
+                            <span style="font-weight: 800; font-size: 1rem; color: #1f2937;">{{ $pendingQuiz->title }}</span>
+                            <span style="font-size: 0.75rem; color: #6b7280; margin-left: 0.5rem;">({{ is_array($pendingQuiz->category->name ?? null) ? ($pendingQuiz->category->name['hu'] ?? reset($pendingQuiz->category->name)) : ($pendingQuiz->category->name ?? 'Általános') }})</span>
+                            <p style="font-size: 0.75rem; color: #4b5563; margin-top: 0.25rem; margin-bottom: 0;">
+                                Készítette: <strong>{{ $pendingQuiz->creator->name ?? 'Anonim' }}</strong> • {{ $pendingQuiz->questions_count }} kérdés
+                            </p>
                         </div>
-                        <div class="flex space-x-2">
+                        <div style="display: flex; gap: 0.5rem;">
                             <!-- Approve Form -->
-                            <form action="{{ route('admin.quizzes.approve', $pendingQuiz) }}" method="POST">
+                            <form action="{{ route('admin.quizzes.approve', $pendingQuiz) }}" method="POST" style="margin: 0;">
                                 @csrf
                                 @method('PATCH')
-                                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">
-                                    {{ __('Jóváhagyás') }}
+                                <button type="submit" class="status-badge-approved" style="border: none; cursor: pointer; padding: 0.5rem 0.75rem;">
+                                    Jóváhagyás
                                 </button>
                             </form>
 
                             <!-- Reject Form -->
-                            <form action="{{ route('admin.quizzes.reject', $pendingQuiz) }}" method="POST">
+                            <form action="{{ route('admin.quizzes.reject', $pendingQuiz) }}" method="POST" style="margin: 0;">
                                 @csrf
                                 @method('PATCH')
-                                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm">
-                                    {{ __('Elutasítás') }}
+                                <button type="submit" class="status-badge-rejected" style="border: none; cursor: pointer; padding: 0.5rem 0.75rem;">
+                                    Elutasítás
                                 </button>
                             </form>
                         </div>
@@ -75,11 +81,13 @@
         </div>
     @endif
 
-    <!-- 🚀 GYORS AKCIÓK (Quick Actions) -->
-    <div class="quick-action-grid">
+    <!-- ==========================================================================
+       3. 🚀 GYORS AKCIÓK (Quick Actions)
+       ========================================================================== -->
+    <div class="quick-action-grid" style="margin-bottom: 2.5rem;">
 
         <!-- 🎮 JÁTÉK -->
-        <a href="{{ route('quiz.bet') }}" class="quick-action-card">
+        <a href="{{ route('quizzes.index') }}" class="quick-action-card">
             <div class="quick-action-icon icon-bg-indigo">
                 🎮
             </div>
@@ -90,7 +98,7 @@
         </a>
 
         <!-- ➕ ÚJ KVÍZ -->
-        <a href="{{ route('quizzes.create') }}" class="quick-action-card">
+        <a href="{{ route('my-quizzes.create') }}" class="quick-action-card">
             <div class="quick-action-icon icon-bg-amber">
                 ➕
             </div>
@@ -113,73 +121,28 @@
 
     </div>
 
-    <div class="dashboard-main-grid">
-
-        <!-- 🌟 KIEMELT / LEGÚJABB KVÍZEK (2 oszlop) -->
-        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2 style="font-size: 1.25rem; font-weight: 800; color: #1f2937; margin: 0;">🔥 Kiemelt Kvízek</h2>
-                <a href="{{ route('quiz.bet') }}" style="font-size: 0.75rem; font-weight: 700; color: #4f46e5; text-decoration: none;">Összes Kvíz →</a>
-            </div>
-
-            @if($featuredQuizzes->isEmpty())
-                <div class="card-white" style="text-align: center; color: #9ca3af;">
-                    Még nincsenek elérhető kvízek. Legyél te az első, aki nyit egyet! 🚀
-                </div>
-            @else
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem;">
-                    @foreach($featuredQuizzes as $quiz)
-                        @php
-                            $cName = is_array($quiz->category->name ?? null)
-                                ? ($quiz->category->name['hu'] ?? reset($quiz->category->name))
-                                : ($quiz->category->name ?? 'Általános');
-                        @endphp
-                        <div class="quiz-card">
-                            <div>
-                                <div class="quiz-card-cover" style="height: 8rem;">
-                                    @if($quiz->cover_image)
-                                        <img src="{{ asset('storage/' . $quiz->cover_image) }}" alt="{{ $quiz->title }}" style="width: 100%; height: 100%; object-fit: cover;">
-                                    @endif
-                                    <span class="badge-category-float">
-                                        {{ $cName }}
-                                    </span>
-                                </div>
-                                <div class="quiz-card-body">
-                                    <h3 class="quiz-card-title" style="font-size: 1rem;">{{ $quiz->title }}</h3>
-                                    <p class="quiz-card-desc">{{ $quiz->description ?? 'Nincs leírás.' }}</p>
-                                </div>
-                            </div>
-                            <div class="quiz-card-footer" style="display: flex; align-items: center; justify-content: space-between; padding-top: 0.75rem;">
-                                <span style="font-size: 0.75rem; color: #9ca3af; font-weight: 700;">❓ {{ $quiz->questions_count }} kérdés</span>
-                                <a href="{{ route('quiz.setup', $quiz->id) }}" class="btn-primary-purple" style="padding: 0.5rem 1rem; font-size: 0.75rem; text-decoration: none;">
-                                    🎮 Játék Indítása
-                                </a>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            @endif
+    <!-- ==========================================================================
+       4. SAJÁT KVÍZEID ÁLLAPOTA (Külön felső szekció az Alkotói áttekintéshez)
+       ========================================================================== -->
+    <div style="margin-bottom: 3rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2 style="font-size: 1.25rem; font-weight: 800; color: #1f2937; margin: 0;">📌 Saját Kvízeid Állapota</h2>
+            <a href="{{ route('my-quizzes.index') }}" style="font-size: 0.75rem; font-weight: 700; color: #4f46e5; text-decoration: none;">Saját Kvízek Kezelése →</a>
         </div>
 
-        <!-- 🛠️ SAJÁT KVÍZEID ÁLLAPOTA (1 oszlop) -->
-        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2 style="font-size: 1.25rem; font-weight: 800; color: #1f2937; margin: 0;">📌 Saját Kvízeid</h2>
-                <a href="{{ route('questions.index') }}" style="font-size: 0.75rem; font-weight: 700; color: #4f46e5; text-decoration: none;">Kezelés →</a>
-            </div>
-
-            <div class="card-white" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
-                @if($myQuizzes->isEmpty())
-                    <div style="text-align: center; padding: 1.5rem 0; color: #9ca3af; font-size: 0.875rem;">
-                        Még nem nyitottál saját kvízt.
-                    </div>
-                @else
+        <div class="card-white" style="padding: 1.5rem;">
+            @if($myQuizzes->isEmpty())
+                <div style="text-align: center; padding: 1.5rem 0; color: #9ca3af; font-size: 0.875rem;">
+                    Még nem nyitottál saját kvízt. Hozz létre egyet! 🚀
+                </div>
+            @else
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
                     @foreach($myQuizzes as $q)
-                        <div style="padding: 1rem; border-radius: 1rem; background-color: #f9fafb; border: 1px solid #f3f4f6; display: flex; align-items: center; justify-content: space-between;">
+                        <div style="padding: 1rem; border-radius: 1rem; background-color: #f9fafb; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
                             <div>
                                 <h4 style="font-weight: 800; color: #1f2937; font-size: 0.875rem; margin: 0;">{{ $q->title }}</h4>
                                 <p style="font-size: 0.75rem; color: #9ca3af; font-weight: 700; margin-top: 0.125rem; margin-bottom: 0;">
-                                    {{ $q->questions_count }}/100 kérdés
+                                    {{ $q->questions_count }} kérdés feltöltve
                                 </p>
                             </div>
 
@@ -187,24 +150,153 @@
                                 @if($q->status === 'approved')
                                     <span class="status-badge-approved">🟢 Publikus</span>
                                 @elseif($q->status === 'pending')
-                                    <span class="status-badge-pending">🔵 Gyűjtés</span>
+                                    <span class="status-badge-pending">🔵 Elbírálásra vár</span>
                                 @else
                                     <span class="status-badge-rejected">❌ Elutasítva</span>
                                 @endif
                             </div>
                         </div>
                     @endforeach
-                @endif
-
-                <a href="{{ route('quizzes.create') }}" class="btn-secondary-gray" style="text-align: center; font-size: 0.75rem; margin-top: 0.5rem;">
-                    ➕ Új Kvíz Nyitása (50.000 PT)
-                </a>
-            </div>
+                </div>
+            @endif
         </div>
-
     </div>
 
+    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 2.5rem;">
+
+    <!-- ==========================================================================
+       5. NETFLIX-STÍLUSÚ KVÍZ SÁVOK (7 KÜLÖNBÖZŐ BLOKK)
+       ========================================================================== -->
+
+    <!-- 1. KIEMELT KVÍZEK -->
+    @if(isset($featuredQuizzes) && $featuredQuizzes->isNotEmpty())
+        <div class="netflix-row-container">
+            <h3 class="row-title">⭐ Kiemelt Kvízek</h3>
+            <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-featured', -1)">❮</button>
+            <div class="netflix-slider" id="row-featured">
+                @foreach($featuredQuizzes as $quiz)
+                    <div class="netflix-card-item">
+                        @include('partials.quiz-card', ['quiz' => $quiz])
+                    </div>
+                @endforeach
+            </div>
+            <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-featured', 1)">❯</button>
+        </div>
+    @endif
+
+    <!-- 2. LEGÚJABB KVÍZEK -->
+    @if(isset($latestQuizzes) && $latestQuizzes->isNotEmpty())
+        <div class="netflix-row-container">
+            <h3 class="row-title">🔥 Legújabb Kvízek</h3>
+            <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-latest', -1)">❮</button>
+            <div class="netflix-slider" id="row-latest">
+                @foreach($latestQuizzes as $quiz)
+                    <div class="netflix-card-item">
+                        @include('partials.quiz-card', ['quiz' => $quiz])
+                    </div>
+                @endforeach
+            </div>
+            <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-latest', 1)">❯</button>
+        </div>
+    @endif
+
+    <!-- 3. KEDVENC KVÍZEK -->
+    @if(isset($favoriteQuizzes) && $favoriteQuizzes->isNotEmpty())
+        <div class="netflix-row-container">
+            <h3 class="row-title">❤️ Kedvenc Kvízeid</h3>
+            <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-favorites', -1)">❮</button>
+            <div class="netflix-slider" id="row-favorites">
+                @foreach($favoriteQuizzes as $quiz)
+                    <div class="netflix-card-item">
+                        @include('partials.quiz-card', ['quiz' => $quiz])
+                    </div>
+                @endforeach
+            </div>
+            <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-favorites', 1)">❯</button>
+        </div>
+    @endif
+
+    <!-- 4. LEGNEHEZEBB KVÍZEK -->
+    @if(isset($hardestQuizzes) && $hardestQuizzes->isNotEmpty())
+        <div class="netflix-row-container">
+            <h3 class="row-title">💀 Legnehezebb Kvízek (Ahol a legtöbben elvéreztek)</h3>
+            <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-hardest', -1)">❮</button>
+            <div class="netflix-slider" id="row-hardest">
+                @foreach($hardestQuizzes as $quiz)
+                    <div class="netflix-card-item">
+                        @include('partials.quiz-card', ['quiz' => $quiz])
+                    </div>
+                @endforeach
+            </div>
+            <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-hardest', 1)">❯</button>
+        </div>
+    @endif
+
+    <!-- 5. EZZEL MÉG NEM JÁTSZOTTÁL -->
+    @if(isset($unplayedQuizzes) && $unplayedQuizzes->isNotEmpty())
+        <div class="netflix-row-container">
+            <h3 class="row-title">🎯 Ezzel még nem játszottál</h3>
+            <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-unplayed', -1)">❮</button>
+            <div class="netflix-slider" id="row-unplayed">
+                @foreach($unplayedQuizzes as $quiz)
+                    <div class="netflix-card-item">
+                        @include('partials.quiz-card', ['quiz' => $quiz])
+                    </div>
+                @endforeach
+            </div>
+            <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-unplayed', 1)">❯</button>
+        </div>
+    @endif
+
+    <!-- 6. KATEGÓRIA FAVORIT -->
+    @if(isset($categoryFavoriteQuizzes) && $categoryFavoriteQuizzes->isNotEmpty())
+        <div class="netflix-row-container">
+            <h3 class="row-title">🏷️ Kategória Favoritok</h3>
+            <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-category', -1)">❮</button>
+            <div class="netflix-slider" id="row-category">
+                @foreach($categoryFavoriteQuizzes as $quiz)
+                    <div class="netflix-card-item">
+                        @include('partials.quiz-card', ['quiz' => $quiz])
+                    </div>
+                @endforeach
+            </div>
+            <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-category', 1)">❯</button>
+        </div>
+    @endif
+
+    <!-- 7. MÁSOK SZERINT NÉPSZERŰ -->
+    @if(isset($popularQuizzes) && $popularQuizzes->isNotEmpty())
+        <div class="netflix-row-container">
+            <h3 class="row-title">👑 Mások szerint népszerű</h3>
+            <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-popular', -1)">❮</button>
+            <div class="netflix-slider" id="row-popular">
+                @foreach($popularQuizzes as $quiz)
+                    <div class="netflix-card-item">
+                        @include('partials.quiz-card', ['quiz' => $quiz])
+                    </div>
+                @endforeach
+            </div>
+            <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-popular', 1)">❯</button>
+        </div>
+    @endif
+
 </div>
+
+<!-- JavaScript a nyilak kattintására történő sima gördítéshez -->
+<script>
+    function scrollRow(rowId, direction) {
+        const container = document.getElementById(rowId);
+        if (!container) return;
+
+        // Egy kattintásra a látható szélesség 75%-át lépteti
+        const scrollAmount = container.clientWidth * 0.75;
+
+        container.scrollBy({
+            left: direction * scrollAmount,
+            behavior: 'smooth'
+        });
+    }
+</script>
 
 </body>
 </html>

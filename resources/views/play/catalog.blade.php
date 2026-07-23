@@ -32,7 +32,7 @@
 
     <!-- 🔍 Szűrő és Kereső Sáv -->
     <div class="filter-card">
-        <form action="{{ route('quiz.bet') }}" method="GET">
+        <form action="{{ route('quizzes.index') }}" method="GET">
             <div class="filter-grid">
 
                 <!-- Kereső -->
@@ -129,7 +129,7 @@
                             <span>👤 {{ $quiz->creator->name ?? 'Rendszer' }}</span>
                         </div>
 
-                        <a href="{{ route('quiz.bet', ['quiz_id' => $quiz->id]) }}" class="btn-start-quiz">
+                        <a href="{{ route('quizzes.index', ['quiz_id' => $quiz->id]) }}" class="btn-start-quiz">
                             🎮 Játék Indítása
                         </a>
                     </div>

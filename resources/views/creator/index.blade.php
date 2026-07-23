@@ -25,7 +25,7 @@
             </p>
         </div>
 
-        <a href="{{ route('quizzes.create') }}" class="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-2xl shadow-lg transition flex items-center gap-2">
+        <a href="{{ route('my-quizzes.create') }}" class="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-2xl shadow-lg transition flex items-center gap-2">
             ➕ Új Kvíz Nyitása (50k PT)
         </a>
     </div>
