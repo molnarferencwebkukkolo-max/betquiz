@@ -3,7 +3,6 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuizController;
-use App\Http\Controllers\QuizPlayController;
 use App\Http\Controllers\QuizManagementController;
 use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\PageController;
@@ -35,12 +34,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Éles kvízek katalógusa (JÁTÉK menüpont)
     Route::get('/quizzes', [QuizController::class, 'showBetForm'])->name('quizzes.index');
 
-    // Egyedi kvíz indítási folyamata (Tét, Nehézség, Start, Játék, Ellenőrzés)
+    // Egyedi kvíz indítási folyamata (Tét, Nehézség, Start, Játék, Válasz, Dobókocka, Cashout)
     Route::prefix('quiz')->name('quiz.')->group(function () {
+        // Tétbeállító képernyő
         Route::get('/setup/{quiz}', [QuizController::class, 'setupQuizPlay'])->name('setup');
-        Route::post('/start/{quiz}', [QuizPlayController::class, 'start'])->name('start');
-        Route::get('/play/{quiz}', [QuizPlayController::class, 'play'])->name('play');
-        Route::post('/check', [QuizPlayController::class, 'answer'])->name('check');
+
+        // Játék indítása (Session inicializálás & Tét levonás)
+        Route::post('/play/{quiz}', [QuizController::class, 'startPlay'])->name('play');
+
+        // A tényleges játék képernyő
+        Route::get('/play/{quiz}/screen', [QuizController::class, 'playScreen'])->name('play.screen');
+
+        // Válasz beküldése
+        Route::post('/play/{quiz}/answer', [QuizController::class, 'submitAnswer'])->name('submit_answer');
+
+        // Dobókocka elgurítása (Rossz válasz mentőöv)
+        Route::post('/play/{quiz}/roll-dice', [QuizController::class, 'rollDice'])->name('roll_dice');
+
+        // Kiszállás (Nyeremény felvétele)
+        Route::post('/play/{quiz}/cashout', [QuizController::class, 'cashout'])->name('cashout');
     });
 
 
@@ -53,7 +65,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/my-quizzes/{quiz}/questions/import', [QuestionController::class, 'importForQuiz'])->name('my-quizzes.questions.import');
     Route::post('/my-quizzes/{quiz}/questions/store', [QuestionController::class, 'storeForQuiz'])->name('questions.storeForQuiz');
 
-    // Kérdések külön erőforrás-kezelője (ha külön kérdést szerkesztesz/törölsz)
+    // Kérdések külön erőforrás-kezelője
     Route::resource('questions', QuestionController::class);
 
 

@@ -109,7 +109,7 @@
         </a>
 
         <!-- 📑 KÉRDÉSEIM / KVÍZEIM -->
-        <a href="{{ route('questions.index') }}" class="quick-action-card">
+        <a href="{{ route('my-quizzes.index') }}" class="quick-action-card">
             <div class="quick-action-icon icon-bg-emerald">
                 📑
             </div>
@@ -142,15 +142,17 @@
                             <div>
                                 <h4 style="font-weight: 800; color: #1f2937; font-size: 0.875rem; margin: 0;">{{ $q->title }}</h4>
                                 <p style="font-size: 0.75rem; color: #9ca3af; font-weight: 700; margin-top: 0.125rem; margin-bottom: 0;">
-                                    {{ $q->questions_count }} kérdés feltöltve
+                                    {{ $q->questions_count }} / 100 kérdés feltöltve
                                 </p>
                             </div>
 
                             <div>
-                                @if($q->status === 'approved')
+                                @if($q->status === 'published')
                                     <span class="status-badge-approved">🟢 Publikus</span>
+                                @elseif($q->status === 'approved')
+                                    <span class="status-badge-pending">🔵 Kérdésgyűjtés ({{ $q->questions_count }}/100)</span>
                                 @elseif($q->status === 'pending')
-                                    <span class="status-badge-pending">🔵 Elbírálásra vár</span>
+                                    <span class="status-badge-pending">⏳ Elbírálásra vár</span>
                                 @else
                                     <span class="status-badge-rejected">❌ Elutasítva</span>
                                 @endif
@@ -165,119 +167,148 @@
     <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 2.5rem;">
 
     <!-- ==========================================================================
-       5. NETFLIX-STÍLUSÚ KVÍZ SÁVOK (7 KÜLÖNBÖZŐ BLOKK)
+       5. NETFLIX-STÍLUSÚ KVÍZ SÁVOK (7 KÜLÖNBÖZŐ BLOKK VAGY ÜRES ÁLLAPOT)
        ========================================================================== -->
+    @php
+        $hasAnyActiveQuiz = (
+            (isset($featuredQuizzes) && $featuredQuizzes->isNotEmpty()) ||
+            (isset($latestQuizzes) && $latestQuizzes->isNotEmpty()) ||
+            (isset($favoriteQuizzes) && $favoriteQuizzes->isNotEmpty()) ||
+            (isset($hardestQuizzes) && $hardestQuizzes->isNotEmpty()) ||
+            (isset($unplayedQuizzes) && $unplayedQuizzes->isNotEmpty()) ||
+            (isset($categoryFavoriteQuizzes) && $categoryFavoriteQuizzes->isNotEmpty()) ||
+            (isset($popularQuizzes) && $popularQuizzes->isNotEmpty())
+        );
+    @endphp
 
-    <!-- 1. KIEMELT KVÍZEK -->
-    @if(isset($featuredQuizzes) && $featuredQuizzes->isNotEmpty())
-        <div class="netflix-row-container">
-            <h3 class="row-title">⭐ Kiemelt Kvízek</h3>
-            <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-featured', -1)">❮</button>
-            <div class="netflix-slider" id="row-featured">
-                @foreach($featuredQuizzes as $quiz)
-                    <div class="netflix-card-item">
-                        @include('partials.quiz-card', ['quiz' => $quiz])
-                    </div>
-                @endforeach
-            </div>
-            <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-featured', 1)">❯</button>
+    @if(!$hasAnyActiveQuiz)
+        <!-- 🎈 ÜRES ÁLLAPOT VISSZAJELZÉS (Ha még nincs 100+ kérdéses publikált kvíz) -->
+        <div style="text-align: center; padding: 3.5rem 1.5rem; background: #ffffff; border: 2px dashed #cbd5e1; border-radius: 1.25rem; margin: 1rem 0;">
+            <div style="font-size: 3.5rem; margin-bottom: 1rem;">🎯</div>
+            <h3 style="font-size: 1.25rem; font-weight: 800; color: #1e293b; margin-bottom: 0.5rem;">
+                Jelenleg nincs elérhető aktív kvíz a rendszerben.
+            </h3>
+            <p style="color: #64748b; max-width: 520px; margin: 0 auto 1.5rem auto; font-size: 0.875rem; line-height: 1.5;">
+                A beküldött kvízek jelenleg elbírálás alatt állnak, vagy a készítők még a kérdésgyűjtési fázisban (100 kérdésig) járnak. Hozz létre egy saját kvízt, vagy nézz vissza később!
+            </p>
+            <a href="{{ route('my-quizzes.create') }}" class="btn-primary-purple" style="display: inline-block; padding: 0.75rem 1.5rem; text-decoration: none; font-weight: 800; font-size: 0.875rem; border-radius: 0.75rem;">
+                ➕ Új Kvíz Létrehozása (50.000 PT)
+            </a>
         </div>
-    @endif
+    @else
 
-    <!-- 2. LEGÚJABB KVÍZEK -->
-    @if(isset($latestQuizzes) && $latestQuizzes->isNotEmpty())
-        <div class="netflix-row-container">
-            <h3 class="row-title">🔥 Legújabb Kvízek</h3>
-            <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-latest', -1)">❮</button>
-            <div class="netflix-slider" id="row-latest">
-                @foreach($latestQuizzes as $quiz)
-                    <div class="netflix-card-item">
-                        @include('partials.quiz-card', ['quiz' => $quiz])
-                    </div>
-                @endforeach
+        <!-- 1. KIEMELT KVÍZEK -->
+        @if(isset($featuredQuizzes) && $featuredQuizzes->isNotEmpty())
+            <div class="netflix-row-container">
+                <h3 class="row-title">⭐ Kiemelt Kvízek</h3>
+                <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-featured', -1)">❮</button>
+                <div class="netflix-slider" id="row-featured">
+                    @foreach($featuredQuizzes as $quiz)
+                        <div class="netflix-card-item">
+                            @include('partials.quiz-card', ['quiz' => $quiz])
+                        </div>
+                    @endforeach
+                </div>
+                <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-featured', 1)">❯</button>
             </div>
-            <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-latest', 1)">❯</button>
-        </div>
-    @endif
+        @endif
 
-    <!-- 3. KEDVENC KVÍZEK -->
-    @if(isset($favoriteQuizzes) && $favoriteQuizzes->isNotEmpty())
-        <div class="netflix-row-container">
-            <h3 class="row-title">❤️ Kedvenc Kvízeid</h3>
-            <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-favorites', -1)">❮</button>
-            <div class="netflix-slider" id="row-favorites">
-                @foreach($favoriteQuizzes as $quiz)
-                    <div class="netflix-card-item">
-                        @include('partials.quiz-card', ['quiz' => $quiz])
-                    </div>
-                @endforeach
+        <!-- 2. LEGÚJABB KVÍZEK -->
+        @if(isset($latestQuizzes) && $latestQuizzes->isNotEmpty())
+            <div class="netflix-row-container">
+                <h3 class="row-title">🔥 Legújabb Kvízek</h3>
+                <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-latest', -1)">❮</button>
+                <div class="netflix-slider" id="row-latest">
+                    @foreach($latestQuizzes as $quiz)
+                        <div class="netflix-card-item">
+                            @include('partials.quiz-card', ['quiz' => $quiz])
+                        </div>
+                    @endforeach
+                </div>
+                <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-latest', 1)">❯</button>
             </div>
-            <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-favorites', 1)">❯</button>
-        </div>
-    @endif
+        @endif
 
-    <!-- 4. LEGNEHEZEBB KVÍZEK -->
-    @if(isset($hardestQuizzes) && $hardestQuizzes->isNotEmpty())
-        <div class="netflix-row-container">
-            <h3 class="row-title">💀 Legnehezebb Kvízek (Ahol a legtöbben elvéreztek)</h3>
-            <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-hardest', -1)">❮</button>
-            <div class="netflix-slider" id="row-hardest">
-                @foreach($hardestQuizzes as $quiz)
-                    <div class="netflix-card-item">
-                        @include('partials.quiz-card', ['quiz' => $quiz])
-                    </div>
-                @endforeach
+        <!-- 3. KEDVENC KVÍZEK -->
+        @if(isset($favoriteQuizzes) && $favoriteQuizzes->isNotEmpty())
+            <div class="netflix-row-container">
+                <h3 class="row-title">❤️ Kedvenc Kvízeid</h3>
+                <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-favorites', -1)">❮</button>
+                <div class="netflix-slider" id="row-favorites">
+                    @foreach($favoriteQuizzes as $quiz)
+                        <div class="netflix-card-item">
+                            @include('partials.quiz-card', ['quiz' => $quiz])
+                        </div>
+                    @endforeach
+                </div>
+                <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-favorites', 1)">❯</button>
             </div>
-            <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-hardest', 1)">❯</button>
-        </div>
-    @endif
+        @endif
 
-    <!-- 5. EZZEL MÉG NEM JÁTSZOTTÁL -->
-    @if(isset($unplayedQuizzes) && $unplayedQuizzes->isNotEmpty())
-        <div class="netflix-row-container">
-            <h3 class="row-title">🎯 Ezzel még nem játszottál</h3>
-            <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-unplayed', -1)">❮</button>
-            <div class="netflix-slider" id="row-unplayed">
-                @foreach($unplayedQuizzes as $quiz)
-                    <div class="netflix-card-item">
-                        @include('partials.quiz-card', ['quiz' => $quiz])
-                    </div>
-                @endforeach
+        <!-- 4. LEGNEHEZEBB KVÍZEK -->
+        @if(isset($hardestQuizzes) && $hardestQuizzes->isNotEmpty())
+            <div class="netflix-row-container">
+                <h3 class="row-title">💀 Legnehezebb Kvízek (Ahol a legtöbben elvéreztek)</h3>
+                <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-hardest', -1)">❮</button>
+                <div class="netflix-slider" id="row-hardest">
+                    @foreach($hardestQuizzes as $quiz)
+                        <div class="netflix-card-item">
+                            @include('partials.quiz-card', ['quiz' => $quiz])
+                        </div>
+                    @endforeach
+                </div>
+                <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-hardest', 1)">❯</button>
             </div>
-            <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-unplayed', 1)">❯</button>
-        </div>
-    @endif
+        @endif
 
-    <!-- 6. KATEGÓRIA FAVORIT -->
-    @if(isset($categoryFavoriteQuizzes) && $categoryFavoriteQuizzes->isNotEmpty())
-        <div class="netflix-row-container">
-            <h3 class="row-title">🏷️ Kategória Favoritok</h3>
-            <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-category', -1)">❮</button>
-            <div class="netflix-slider" id="row-category">
-                @foreach($categoryFavoriteQuizzes as $quiz)
-                    <div class="netflix-card-item">
-                        @include('partials.quiz-card', ['quiz' => $quiz])
-                    </div>
-                @endforeach
+        <!-- 5. EZZEL MÉG NEM JÁTSZOTTÁL -->
+        @if(isset($unplayedQuizzes) && $unplayedQuizzes->isNotEmpty())
+            <div class="netflix-row-container">
+                <h3 class="row-title">🎯 Ezzel még nem játszottál</h3>
+                <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-unplayed', -1)">❮</button>
+                <div class="netflix-slider" id="row-unplayed">
+                    @foreach($unplayedQuizzes as $quiz)
+                        <div class="netflix-card-item">
+                            @include('partials.quiz-card', ['quiz' => $quiz])
+                        </div>
+                    @endforeach
+                </div>
+                <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-unplayed', 1)">❯</button>
             </div>
-            <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-category', 1)">❯</button>
-        </div>
-    @endif
+        @endif
 
-    <!-- 7. MÁSOK SZERINT NÉPSZERŰ -->
-    @if(isset($popularQuizzes) && $popularQuizzes->isNotEmpty())
-        <div class="netflix-row-container">
-            <h3 class="row-title">👑 Mások szerint népszerű</h3>
-            <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-popular', -1)">❮</button>
-            <div class="netflix-slider" id="row-popular">
-                @foreach($popularQuizzes as $quiz)
-                    <div class="netflix-card-item">
-                        @include('partials.quiz-card', ['quiz' => $quiz])
-                    </div>
-                @endforeach
+        <!-- 6. KATEGÓRIA FAVORIT -->
+        @if(isset($categoryFavoriteQuizzes) && $categoryFavoriteQuizzes->isNotEmpty())
+            <div class="netflix-row-container">
+                <h3 class="row-title">🏷️ Kategória Favoritok</h3>
+                <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-category', -1)">❮</button>
+                <div class="netflix-slider" id="row-category">
+                    @foreach($categoryFavoriteQuizzes as $quiz)
+                        <div class="netflix-card-item">
+                            @include('partials.quiz-card', ['quiz' => $quiz])
+                        </div>
+                    @endforeach
+                </div>
+                <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-category', 1)">❯</button>
             </div>
-            <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-popular', 1)">❯</button>
-        </div>
+        @endif
+
+        <!-- 7. MÁSOK SZERINT NÉPSZERŰ -->
+        @if(isset($popularQuizzes) && $popularQuizzes->isNotEmpty())
+            <div class="netflix-row-container">
+                <h3 class="row-title">👑 Mások szerint népszerű</h3>
+                <button class="scroll-btn scroll-btn-left" onclick="scrollRow('row-popular', -1)">❮</button>
+                <div class="netflix-slider" id="row-popular">
+                    @foreach($popularQuizzes as $quiz)
+                        <div class="netflix-card-item">
+                            @include('partials.quiz-card', ['quiz' => $quiz])
+                        </div>
+                    @endforeach
+                </div>
+                <button class="scroll-btn scroll-btn-right" onclick="scrollRow('row-popular', 1)">❯</button>
+            </div>
+        @endif
+
     @endif
 
 </div>
@@ -288,7 +319,6 @@
         const container = document.getElementById(rowId);
         if (!container) return;
 
-        // Egy kattintásra a látható szélesség 75%-át lépteti
         const scrollAmount = container.clientWidth * 0.75;
 
         container.scrollBy({

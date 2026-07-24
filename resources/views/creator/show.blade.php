@@ -75,12 +75,12 @@
             <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
 
                 <!-- ✏️ Kvíz Szerkesztése Gomb -->
-                <a href="{{ route('quizzes.edit', $quiz->id) }}" class="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold rounded-2xl transition flex items-center gap-1 text-sm">
+                <a href="{{ route('my-quizzes.edit', ['my_quiz' => $quiz->id]) }}" class="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold rounded-2xl transition flex items-center gap-1 text-sm">
                     ✏️ Szerkesztés
                 </a>
 
                 <!-- 🚀 Publikálás / Visszavonás Gomb -->
-                <form action="{{ route('quizzes.update', $quiz->id) }}" method="POST">
+                <form action="{{ route('my-quizzes.update', $quiz->id) }}" method="POST">
                     @csrf
                     @if($isPublished)
                         <button type="submit" class="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white font-extrabold rounded-2xl shadow transition flex items-center gap-2 text-sm">
@@ -95,6 +95,14 @@
                             🚀 Kvíz Publikálása (100/100)
                         </button>
                     @endif
+                </form>
+                <!-- TÖRLÉS Gomb -->
+                <form action="{{ route('my-quizzes.destroy', $quiz) }}" method="POST" onsubmit="return confirm('Biztosan törölni szeretnéd ezt a kvízt?');">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="px-4 py-3 bg-red-100 hover:bg-red-200 text-red-600 font-extrabold rounded-2xl transition flex items-center gap-1 text-sm">
+                        🗑️ Kvíz törlése
+                    </button>
                 </form>
 
                 <!-- ➕ Új Kérdés Gomb -->
@@ -130,7 +138,7 @@
                 <code>Kérdés; Helyes válasz; Hibás1; Hibás2; Hibás3; Nehézség (easy/medium/hard)</code>
             </p>
 
-            <form action="{{ route('quizzes.questions.import', $quiz->id) }}" method="POST" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-3 items-center">
+            <form action="{{ route('my-quizzes.questions.import', $quiz->id) }}" method="POST" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-3 items-center">
                 @csrf
                 <input type="file" name="csv_file" required accept=".csv,.txt" class="w-full sm:w-auto text-xs bg-white p-2.5 rounded-xl border border-indigo-200 font-medium text-gray-600">
                 <button type="submit" class="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow transition">
@@ -215,7 +223,15 @@
                             <a href="{{ route('questions.edit', $question->id) }}" class="text-indigo-600 hover:text-indigo-900 font-bold text-xs">
                                 ✏️ Szerkesztés
                             </a>
+                            <form action="{{ route('questions.destroy', $question->id) }}" method="POST" onsubmit="return confirm('Biztosan törölni szeretnéd ezt a kérdést?');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" style="color: #ef4444; background: none; border: none; cursor: pointer; font-size: 0.875rem; font-weight: 700;">
+                                    🗑️ Törlés
+                                </button>
+                            </form>
                         </td>
+
                     </tr>
                 @empty
                     <tr>

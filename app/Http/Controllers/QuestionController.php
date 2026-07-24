@@ -83,7 +83,7 @@ class QuestionController extends Controller
                     Option::create([
                         'question_id' => $question->id,
                         'option_text' => $opt['text'],
-                        'is_correct' => (bool) $opt['is_correct'],
+                        'is_correct' => (bool)$opt['is_correct'],
                     ]);
                 }
             });
@@ -318,45 +318,20 @@ class QuestionController extends Controller
      */
     public function destroy(Question $question)
     {
-        $this->authorizeAccess($question);
+        $user = Auth::user();
+        $quiz = $question->quiz;
 
-        $quizId = $question->quiz_id;
-
-        if ($question->image_path) {
-            Storage::disk('public')->delete($question->image_path);
-        }
-        foreach ($question->options as $opt) {
-            if ($opt->image_path) {
-                Storage::disk('public')->delete($opt->image_path);
-            }
+        // 🔒 Jogosultság ellenőrzése (csak a készítő vagy admin törölheti)
+        if (!$user->isUseradmin() && !$user->isHostadmin() && $quiz->creator_id !== $user->id) {
+            abort(403, 'Nincs jogosultságod törölni ezt a kérdést!');
         }
 
+        // 💣 Opciók törlése
         $question->options()->delete();
+
+        // 💣 Kérdés törlése
         $question->delete();
 
-        return redirect()->route('quizzes.show', $quizId)->with('success', '🗑️ Kérdés sikeresen törölve!');
-    }
-
-    /**
-     * Jogosultság ellenőrző segédfüggvény (Saját kérdéshez/adminisztrációhoz).
-     */
-    private function authorizeAccess(Question $question)
-    {
-        $user = Auth::user();
-
-        if (!$user->canManageQuestion($question)) {
-            abort(403, 'Nincs jogosultságod ehhez a kérdéshez!');
-        }
-    }
-
-    /**
-     * Jogosultság ellenőrző segédfüggvény a Kvízhez
-     */
-    private function authorizeQuizAccess(Quiz $quiz)
-    {
-        $user = Auth::user();
-        if (!$user->isUseradmin() && $quiz->creator_id !== $user->id) {
-            abort(403, 'Nincs jogosultságod ehhez a kvízhez kérdést hozzáadni!');
-        }
+        return back()->with('success', 'A kérdés sikeresen törölve lett!');
     }
 }

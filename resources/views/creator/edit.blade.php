@@ -16,7 +16,7 @@
 
     <!-- Vissza gomb -->
     <div class="mb-6">
-        <a href="{{ route('quizzes.show', $quiz->id) }}" class="text-sm font-bold text-gray-500 hover:text-gray-800 transition">
+        <a href="{{ route('my-quizzes.show', $quiz->id) }}" class="text-sm font-bold text-gray-500 hover:text-gray-800 transition">
             ← Vissza a Kvízhez
         </a>
     </div>
@@ -84,7 +84,7 @@
 
             <!-- Művelet gombok -->
             <div class="pt-4 flex justify-end gap-3">
-                <a href="{{ route('quizzes.show', $quiz->id) }}" class="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl transition">
+                <a href="{{ route('my-quizzes.show', $quiz->id) }}" class="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl transition">
                     Mégse
                 </a>
                 <button type="submit" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-2xl shadow-lg transition">

@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -29,16 +28,23 @@ class Category extends Model
     }
 
     /**
-     * Dinamikus többnyelvű név (getter)
+     * Dinamikus többnyelvű név (getter: $category->translated_name)
      */
     public function getTranslatedNameAttribute(): string
     {
         $locale = App::getLocale();
+        $names = $this->name;
 
-        if (is_array($this->name)) {
-            return $this->name[$locale] ?? $this->name['hu'] ?? reset($this->name);
+        // Ha sztringként maradt volna a DB-ben
+        if (is_string($names)) {
+            $decoded = json_decode($names, true);
+            $names = is_array($decoded) ? $decoded : ['hu' => $names];
         }
 
-        return $this->name ?? '';
+        if (is_array($names) && !empty($names)) {
+            return $names[$locale] ?? $names['hu'] ?? (string) reset($names);
+        }
+
+        return 'Általános';
     }
 }

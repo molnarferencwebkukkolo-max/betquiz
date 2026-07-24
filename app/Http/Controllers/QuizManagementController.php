@@ -17,14 +17,18 @@ class QuizManagementController extends Controller
         $user = auth()->user();
 
         if ($user->isUseradmin() || $user->isHostadmin()) {
-            // Adminisztrátornak az összes kvíz kell (jóváhagyás/elutasítás miatt)
-            $quizzes = Quiz::with(['creator', 'category'])->latest()->get();
+            // Adminisztrátornak az összes kvíz kell
+            $quizzes = Quiz::with(['creator', 'category'])
+                ->withCount('questions')
+                ->latest()
+                ->paginate(15);
         } else {
             // Sima felhasználónak csak a saját kvízei kellenek
             $quizzes = Quiz::where('creator_id', $user->id)
                 ->with('category')
+                ->withCount('questions')
                 ->latest()
-                ->get();
+                ->paginate(15);
         }
 
         return view('creator.index', compact('quizzes'));
@@ -41,7 +45,7 @@ class QuizManagementController extends Controller
     }
 
     /**
-     * Új kvíz mentése az adatbázisba
+     * Új kvíz mentése az adatbázisba (Első 10 kérdéssel -> Pending)
      */
     public function store(Request $request)
     {
@@ -56,29 +60,33 @@ class QuizManagementController extends Controller
             'description' => $validated['description'],
             'category_id' => $validated['category_id'],
             'creator_id' => auth()->id(),
-            'status' => 'pending', // Alapértelmezetten elbírálásra vár
+            'status' => 'pending', // Alapértelmezetten adminisztrátori bírálatra vár!
         ]);
 
         return redirect()->route('my-quizzes.show', $quiz->id)
-            ->with('success', 'Kvíz sikeresen létrehozva! Tölts fel kérdéseket vagy importálj CSV-ből.');
+            ->with('success', 'Kvíz koncepció sikeresen benyújtva! Adminisztrátori jóváhagyás után kezdheted meg a további kérdések feltöltését.');
     }
 
     /**
      * Egy konkrét kvíz részletei (CSV feltöltés, kérdések listája, Admin bírálati panel)
      */
-    public function show(Quiz $quiz)
+    public function show(Quiz $myQuiz) // <-- $quiz helyett $myQuiz!
     {
         $user = Auth::user();
 
         // Ellenőrizzük a jogosultságot
-        if (!$user->isUseradmin() && !$user->isHostadmin() && $quiz->creator_id !== $user->id) {
+        if (!$user->isUseradmin() && !$user->isHostadmin() && $myQuiz->creator_id !== $user->id) {
             abort(403, 'Nincs jogosultságod ehhez a kvízhez!');
         }
 
-        // Betöltjük a Kvízhez tartozó kérdéseket az opcióikkal együtt
-        $quiz->load(['category', 'creator', 'questions.options']);
+        // Betöltjük a Kvízhez tartozó relációkat
+        $myQuiz->load(['category', 'creator', 'questions.options']);
 
-        return view('creator.show', compact('quiz', 'user'));
+        // 'quiz' néven adjuk át a $myQuiz-t a Blade sablonnak!
+        return view('creator.show', [
+            'quiz' => $myQuiz,
+            'user' => $user
+        ]);
     }
 
     /**
@@ -116,67 +124,48 @@ class QuizManagementController extends Controller
 
         $quiz->update($validated);
 
-        return redirect()->route('my-quizzes.show', $quiz->id)
+        return redirect()->route('my-my-quizzes.show', $quiz->id)
             ->with('success', 'Kvíz sikeresen frissítve!');
     }
 
     /**
      * Kvíz törlése
      */
-    public function destroy(Quiz $quiz)
+    public function destroy(Quiz $myQuiz)
     {
         $user = Auth::user();
 
-        if (!$user->isUseradmin() && !$user->isHostadmin() && $quiz->creator_id !== $user->id) {
-            abort(403, 'Nincs jogosultságod ehhez a kvízhez!');
+        // 🔒 Jogosultság ellenőrzése
+        if (!$user->isUseradmin() && !$user->isHostadmin() && $myQuiz->creator_id !== $user->id) {
+            abort(403, 'Nincs jogosultságod törölni ezt a kvízt!');
         }
 
-        $quiz->delete();
+        // 💣 Kapcsolódó kérdések törlése (ha nincs cascade törlés beállítva a DB-ben)
+        $myQuiz->questions()->delete();
 
-        return redirect()->route('my-quizzes.index')
-            ->with('success', 'Kvíz sikeresen törölve!');
+        // 💣 Kvíz törlése
+        $myQuiz->delete();
+
+        return redirect()->route('my-quizzes.index')->with('success', 'A kvíz sikeresen törölve lett!');
     }
 
     /**
-     * Kvíz publikálása / beküldése jóváhagyásra
-     */
-    public function togglePublish(Quiz $quiz)
-    {
-        $user = auth()->user();
-
-        if ($user->id !== $quiz->creator_id && !$user->isUseradmin() && !$user->isHostadmin()) {
-            abort(403, 'Nincs jogosultságod a kvíz státuszának módosításához.');
-        }
-
-        if ($user->isUseradmin() || $user->isHostadmin()) {
-            $newStatus = ($quiz->status === 'approved') ? 'pending' : 'approved';
-            $message = ($newStatus === 'approved')
-                ? 'A kvíz sikeresen jóváhagyva és publikálva!'
-                : 'A kvíz visszatéve a várakozási sorba.';
-        } else {
-            if ($quiz->status === 'approved') {
-                return redirect()->back()->with('error', 'A már jóváhagyott kvízt csak adminisztrátor vonhatja vissza.');
-            }
-
-            $newStatus = 'pending';
-            $message = 'A kvíz sikeresen beküldve az adminisztrátornak jóváhagyásra!';
-        }
-
-        $quiz->update([
-            'status' => $newStatus,
-            'rejection_reason' => null,
-        ]);
-
-        return redirect()->back()->with('success', $message);
-    }
-
-    /**
-     * Admin: Kvíz jóváhagyása
+     * Admin: Kvíz jóváhagyása (Engedélyezi a kérdések gyűjtését 100-ig)
      */
     public function approveQuiz(Quiz $quiz)
     {
-        $quiz->update(['status' => 'approved']);
-        return back()->with('success', 'Kvíz elfogadva!');
+        $user = auth()->user();
+
+        if (!$user->isUseradmin() && !$user->isHostadmin()) {
+            abort(403, 'Csak adminisztrátor hagyhatja jóvá a kvízt.');
+        }
+
+        $quiz->update([
+            'status' => 'approved',
+            'rejection_reason' => null,
+        ]);
+
+        return back()->with('success', 'Kvíz koncepció jóváhagyva! A készítő mostantól feltöltheti a maradék kérdéseket (100 db-ig).');
     }
 
     /**
@@ -184,8 +173,35 @@ class QuizManagementController extends Controller
      */
     public function rejectQuiz(Quiz $quiz)
     {
-        $quiz->update(['status' => 'rejected']);
-        return back()->with('error', 'Kvíz elutasítva!');
+        $user = auth()->user();
+
+        if (!$user->isUseradmin() && !$user->isHostadmin()) {
+            abort(403, 'Csak adminisztrátor utasíthatja el a kvízt.');
+        }
+
+        $quiz->update([
+            'status' => 'rejected'
+        ]);
+
+        return back()->with('error', 'Kvíz koncepció elutasítva!');
+    }
+
+    /**
+     * Segéd-metódus: Ellenőrzi, hogy elértük-e a 100 kérdést, és ha igen, automatikusan publikálja (`published`)
+     */
+    public static function checkAndPublish(Quiz $quiz)
+    {
+        $questionCount = $quiz->questions()->count();
+
+        // Ha eléri a 100 kérdést és jóvá volt hagyva (approved), élesítjük!
+        if ($questionCount >= 100 && $quiz->status === 'approved') {
+            $quiz->update([
+                'status' => 'published'
+            ]);
+            return true;
+        }
+
+        return false;
     }
 
     /**

@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Question extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'quiz_id', // <-- FONTOS: benne kell lennie a fillable tömbben!
@@ -21,6 +22,7 @@ class Question extends Model
         'times_answered', // <-- ÚJ
         'times_correct',  // <-- ÚJ
     ];
+
 
     /**
      * Helyes válaszok aránya százalékban

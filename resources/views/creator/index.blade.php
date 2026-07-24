@@ -64,7 +64,7 @@
                     </div>
 
                     <h2 class="text-xl font-bold text-gray-800 mb-2">
-                        <a href="{{ route('quizzes.show', $quiz->id) }}" class="hover:text-indigo-600 transition">
+                        <a href="{{ route('my-quizzes.show', $quiz->id) }}" class="hover:text-indigo-600 transition">
                             {{ $quiz->title }}
                         </a>
                     </h2>
@@ -90,7 +90,7 @@
                             </span>
 
                         <!-- 🎯 ITT A LÉNYEG: Direkt kattintható gomb a részletezéshez -->
-                        <a href="{{ route('quizzes.show', $quiz->id) }}" class="px-3 py-1.5 bg-indigo-600 text-white font-bold rounded-xl shadow hover:bg-indigo-700 transition flex items-center gap-1">
+                        <a href="{{ route('my-quizzes.show', $quiz->id) }}" class="px-3 py-1.5 bg-indigo-600 text-white font-bold rounded-xl shadow hover:bg-indigo-700 transition flex items-center gap-1">
                             👁️ Megtekintés & Statisztika →
                         </a>
                     </div>
