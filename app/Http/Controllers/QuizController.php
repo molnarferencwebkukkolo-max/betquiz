@@ -199,6 +199,7 @@ class QuizController extends Controller
             'answered_ids'   => [],
             'status'         => 'active',
             'awaiting_dice'  => false,
+            'awaiting_decision' => false,
         ]);
 
         return redirect()->route('quiz.play.screen', $quiz);
@@ -217,7 +218,7 @@ class QuizController extends Controller
             return redirect()->route('quiz.setup', $quiz)->with('error', 'A játékmenet lezárult vagy nem található.');
         }
 
-        $query = $quiz->questions()->whereNotIn('id', $game['answered_ids']);
+        $query = $quiz->questions()->whereNotIn('id', $game['answered_ids'] ?? []);
 
         if ($game['difficulty'] !== 'mixed') {
             $query->where('difficulty', $game['difficulty']);
@@ -263,101 +264,79 @@ class QuizController extends Controller
         $user = Auth::user();
         $game = session('game_session');
 
-        if (!$game || $game['status'] !== 'active' || $game['awaiting_dice']) {
-            return redirect()->route('quiz.play.screen', $quiz);
+        if (!$game || $game['status'] !== 'active') {
+            return redirect()->route('quiz.setup', $quiz);
         }
 
-        $request->validate([
-            'question_id'     => 'required|exists:questions,id',
-            'selected_option' => 'required',
-        ]);
+        $questionId = $request->input('question_id');
+        $selectedOptionId = $request->input('selected_option'); // Ha lejárt az idő, ez NULL!
 
-        $question = Question::findOrFail($request->question_id);
-
-        $answersList = $question->answers
-            ?? $question->options
-            ?? DB::table('answers')->where('question_id', $question->id)->get();
-
-        $selectedAnswer = collect($answersList)->first(function ($item) use ($request) {
-            $itemId = is_object($item) ? $item->id : ($item['id'] ?? null);
-            return (string)$itemId === (string)$request->selected_option;
-        });
-
-        $isCorrect = false;
-        if ($selectedAnswer) {
-            $correctVal = is_object($selectedAnswer) ? $selectedAnswer->is_correct : ($selectedAnswer['is_correct'] ?? false);
-            $isCorrect = ($correctVal == true || $correctVal == 1 || $correctVal === 'true');
+        $question = Question::find($questionId);
+        if (!$question) {
+            return redirect()->route('quiz.play.screen', $quiz)->with('error', 'A kérdés nem található!');
         }
 
-        // Session frissítése (megválaszolt kérdések eltárolása)
-        $game['answered_ids'][] = $question->id;
-
-        // ADATBÁZIS MENTÉS (Garancia, hogy többé ne kapja meg ezt a kérdést)
-        try {
-            if (Schema::hasTable('user_answers')) {
-                DB::table('user_answers')->insert([
-                    'user_id'     => $user->id,
-                    'quiz_id'     => $quiz->id,
-                    'question_id' => $question->id,
-                    'is_correct'  => $isCorrect ? 1 : 0,
-                    'created_at'  => now(),
-                    'updated_at'  => now(),
-                ]);
-            }
-        } catch (\Exception $e) {
-            // Ha már be volt szúrva korábban, figyelmen kívül hagyjuk
+        $options = collect();
+        if (method_exists($question, 'options')) {
+            $options = $question->options;
+        } elseif (method_exists($question, 'answers')) {
+            $options = $question->answers;
         }
 
-        // Szorzók kiszámítása nehézség és időkorlát alapján
-        $diffMultipliers = [
-            'easy'   => 1.3,
-            'medium' => 1.5,
-            'hard'   => 2.0,
-        ];
-
-        $diffKey = strtolower($question->difficulty ?? 'easy');
-        $diffMultiplier = $diffMultipliers[$diffKey] ?? 1.3;
-        $totalMultiplier = $diffMultiplier * $game['time_modifier'];
+        $correctOption = $options->where('is_correct', true)->first();
+        $isCorrect = $selectedOptionId && $correctOption && ((int)$selectedOptionId === (int)$correctOption->id);
 
         if ($isCorrect) {
-            // HELYES VÁLASZ LOGIKA
-            if ($game['game_mode'] === 'normal') {
-                $roundWin = round($game['initial_bet'] * $totalMultiplier);
-                $game['won_amount'] += $roundWin;
+            // --- 🟢 HELYES VÁLASZ ---
+            $bet = $game['initial_bet'] ?? 50;
+            $multiplier = ($game['time_modifier'] ?? 1.0) * 1.5;
+            $wonAmount = (int) round($bet * $multiplier);
+
+            if (($game['game_mode'] ?? 'normal') === 'normal') {
+                $user->increment('points', $wonAmount);
+                $game['won_amount'] = $wonAmount;
+                $game['awaiting_decision'] = true;
             } else {
-                $game['current_pot'] = round($game['current_pot'] * $totalMultiplier);
+                $game['current_pot'] = ($game['current_pot'] ?? 0) + $wonAmount;
+                $game['won_amount'] = $wonAmount;
             }
 
-            $game['current_step']++;
-
-            if ($game['game_mode'] === 'odds' && $game['current_step'] > $game['target_count']) {
-                session()->put('game_session', $game);
-                return $this->finishGame($quiz, 'odds_completed');
+            if (!isset($game['answered_ids'])) {
+                $game['answered_ids'] = [];
             }
+            $game['answered_ids'][] = $questionId;
+            $game['current_step'] = ($game['current_step'] ?? 1) + 1;
 
             session()->put('game_session', $game);
+
             return redirect()->route('quiz.play.screen', $quiz)->with('success', 'Helyes válasz! 🎉');
 
         } else {
-            // ROSSZ VÁLASZ LOGIKA (Mázli bónusz előkészítése a dobókockához)
+            // Megőrizzük a nyerési bónuszt mentőöv esetére
+            $bet = $game['initial_bet'] ?? 50;
             $game['pending_dice_win'] = [
-                'total_multiplier' => $totalMultiplier,
-                'round_win'        => round($game['initial_bet'] * $totalMultiplier)
+                'round_win' => (int) round($bet * ($game['time_modifier'] ?? 1.0)),
+                'total_multiplier' => 1.5
             ];
 
-            $game['awaiting_dice'] = true;
-            session()->put('game_session', $game);
+            if ($selectedOptionId) {
+                // 🔴 ROSSZ VÁLASZT ADOTT ➔ KOCKADOBÁS MENTŐÖV
+                $game['awaiting_dice'] = true;
+                $game['awaiting_time_travel'] = false;
+                session()->put('game_session', $game);
 
-            return redirect()->route('quiz.play.screen', $quiz)->with('warning', 'Helytelen válasz! Próbálj 6-ost dobni, hogy mégis megkapd a nyereményt! 🎲');
+                return redirect()->route('quiz.play.screen', $quiz)->with('error', 'Sajnos a válasz helytelen volt! Dobj 6-ost a megmentésért!');
+            } else {
+                // ⏱️ LEJÁRT AZ IDŐ ➔ DOKI IDŐUGRÁS MENTŐÖV (88 MPH)
+                $game['awaiting_time_travel'] = true;
+                $game['awaiting_dice'] = false;
+                session()->put('game_session', $game);
+
+                return redirect()->route('quiz.play.screen', $quiz)->with('error', '⏱️ Kifutottál az időből! Használd a Fluxus-Mentőövet az idő visszapörgetéséhez!');
+            }
         }
     }
 
-    /**
-     * 4. Dobókocka elgurítása
-     */
-    /**
-     * 4. Dobókocka elgurítása (Rossz válasz mentőöv / Bónusz nyeremény)
-     */
     /**
      * 4. Dobókocka elgurítása
      */
@@ -367,7 +346,7 @@ class QuizController extends Controller
         $user = Auth::user();
         $game = session('game_session');
 
-        if (!$game || !$game['awaiting_dice']) {
+        if (!$game || !($game['awaiting_dice'] ?? false)) {
             return redirect()->route('quiz.play.screen', $quiz);
         }
 
@@ -381,16 +360,12 @@ class QuizController extends Controller
 
         // EGYENLEG ÉS FIZETŐSSÉG ELLENŐRZÉSE
         if ($freeRollsUsed >= 3) {
-            // Elfogytak az ingyenesek -> 100 PT kell
             if ($user->points < 100) {
-                // Nincs elég zsetonja a gurításhoz -> Bukta a kört!
                 unset($game['pending_dice_win']);
                 return $this->finishGame($quiz, 'failed_dice_no_points');
             }
-            // Levonjuk a 100 PT-t
             $user->decrement('points', 100);
         } else {
-            // Még van ingyenes -> Növeljük a felhasznált ingyenesek számát
             DB::table('user_dice_rolls')->updateOrInsert(
                 ['user_id' => $user->id, 'roll_date' => $todayDate],
                 ['free_rolls_used' => $freeRollsUsed + 1, 'updated_at' => now()]
@@ -404,17 +379,19 @@ class QuizController extends Controller
             $pendingWin = $game['pending_dice_win'] ?? null;
 
             if ($pendingWin) {
-                if ($game['game_mode'] === 'normal') {
-                    $game['won_amount'] += $pendingWin['round_win'];
+                if (($game['game_mode'] ?? 'normal') === 'normal') {
+                    $user->increment('points', $pendingWin['round_win']);
+                    $game['won_amount'] = $pendingWin['round_win'];
+                    $game['awaiting_decision'] = true;
                 } else {
                     $game['current_pot'] = round($game['current_pot'] * $pendingWin['total_multiplier']);
                 }
             }
 
-            $game['current_step']++;
+            $game['current_step'] = ($game['current_step'] ?? 1) + 1;
             unset($game['pending_dice_win']);
 
-            if ($game['game_mode'] === 'odds' && $game['current_step'] > $game['target_count']) {
+            if (($game['game_mode'] ?? 'normal') === 'odds' && $game['current_step'] > $game['target_count']) {
                 session()->put('game_session', $game);
                 return $this->finishGame($quiz, 'odds_completed');
             }
@@ -422,9 +399,81 @@ class QuizController extends Controller
             session()->put('game_session', $game);
             return redirect()->route('quiz.play.screen', $quiz)->with('success', "🎯 6-OST DOBTÁL! Mázli! Jóváírtuk a kör nyereményét!");
         } else {
+            // 🛑 NEM 6-OST DOBOTT (BUKTA A MENTŐÖVET)
             unset($game['pending_dice_win']);
+            session()->put('game_session', $game);
             return $this->finishGame($quiz, 'failed_dice', $diceRoll);
         }
+    }
+
+    /**
+     * ⚡ Doki Időugrása (Időlejárás mentőöv)
+     */
+    public function timeTravel(Quiz $quiz)
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $game = session('game_session');
+
+        if (!$game || !($game['awaiting_time_travel'] ?? false)) {
+            return redirect()->route('quiz.play.screen', $quiz);
+        }
+
+        $freeUsed = $user->lifetime_free_time_travels_used ?? 0;
+
+        if ($freeUsed >= 3) {
+            // 100 PT kell
+            if ($user->points < 100) {
+                unset($game['pending_dice_win']);
+                return $this->finishGame($quiz, 'failed_dice_no_points');
+            }
+            $user->decrement('points', 100);
+        } else {
+            // Levonunk egyet az örök 3 ingyenesből
+            $user->increment('lifetime_free_time_travels_used');
+        }
+
+        // ⚡ Visszaállítjuk az órát a kérdésnél!
+        $game['awaiting_time_travel'] = false;
+        unset($game['pending_dice_win']);
+
+        session()->put('game_session', $game);
+
+        return redirect()->route('quiz.play.screen', $quiz)->with('success', '⚡ 88 MPH! Sikeres időugrás! Az óra újraindult a kérdésnél!');
+    }
+
+    /**
+     * Normál mód: A játékos a következő kérdés gombra kattintott
+     */
+    public function nextQuestion(Quiz $quiz)
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $game = session('game_session');
+
+        if (!$game || $game['status'] !== 'active') {
+            return redirect()->route('quiz.setup', $quiz);
+        }
+
+        // 🎯 HA NORMÁL JÁTÉKMÓDBAN VAGYUNK: Levonjuk az új kérdés tétjét!
+        if (($game['game_mode'] ?? 'normal') === 'normal') {
+            $bet = $game['initial_bet'] ?? 50;
+
+            // Ellenőrizzük, hogy van-e elegendő pontja a következő körre
+            if ($user->points < $bet) {
+                // Ha nincs elég pontja, lezárjuk a játékot, de a korábbi nyereményei megmaradnak!
+                return $this->finishGame($quiz, 'user_cashout');
+            }
+
+            // Levonjuk a tétet az egyenlegéből
+            $user->decrement('points', $bet);
+        }
+
+        // Feloldjuk a döntési állapotot, jöhet a következő kérdés!
+        $game['awaiting_decision'] = false;
+        session()->put('game_session', $game);
+
+        return redirect()->route('quiz.play.screen', $quiz);
     }
 
     /**
@@ -453,32 +502,39 @@ class QuizController extends Controller
         $payout = 0;
         $message = '';
 
-        if ($reason === 'user_cashout') {
-            $payout = $game['game_mode'] === 'normal' ? ($game['won_amount'] + $game['initial_bet']) : max(0, $game['current_pot'] - $game['initial_bet']);
-            $message = "Sikeresen kiszálltál! Nyereményed: {$payout} PT!";
-        } elseif ($reason === 'odds_completed') {
-            $payout = $game['current_pot'];
-            $message = "🏆 GRATULÁLUNK! Végigvitted az Odds-os játékot! Nyereményed: {$payout} PT!";
-        } elseif ($reason === 'out_of_questions') {
-            $payout = $game['game_mode'] === 'normal' ? ($game['won_amount'] + $game['initial_bet']) : $game['current_pot'];
-            $message = "Elfogyztak a kérdések a kvízben! Nyereményed: {$payout} PT!";
-        } elseif ($reason === 'failed_dice') {
-            $payout = 0;
-            $message = "🎲 A kockán {$diceRoll}-ost dobtál (nem 6-ost). Sajnos a tétet elveszítetted! 😞";
+        if (($game['game_mode'] ?? 'normal') === 'normal') {
+            if ($reason === 'user_cashout') {
+                $message = "Sikeresen befejezted a játékot! A megnyert zsetonjaid már a számládon vannak. 🎉";
+            } elseif ($reason === 'failed_dice') {
+                $message = "🎲 A kockán {$diceRoll}-ost dobtál (nem 6-ost). Az utolsó tétet elvesztetted, de a korábban megnyert zsetonjaid megmaradtak!";
+            } elseif ($reason === 'failed_dice_no_points') {
+                $message = "Elfogytak az ingyenes dobásaid, és nem volt 100 PT-d a fizetős gurításhoz! A játék véget ért.";
+            } elseif ($reason === 'out_of_questions') {
+                $message = "Elfogyztak a kérdések ebben a kvízben! Szép teljesítmény! 🏆";
+            } else {
+                $message = "A játék lezárult.";
+            }
+        } else {
+            if ($reason === 'odds_completed' || $reason === 'out_of_questions') {
+                $payout = $game['current_pot'] ?? 0;
+                if ($payout > 0) {
+                    $user->increment('points', $payout);
+                }
+                $message = "🏆 GRATULÁLUNK! Végigvitted az Odds-os játékot! Nyereményed: {$payout} PT!";
+            } elseif ($reason === 'failed_dice' || $reason === 'failed_dice_no_points') {
+                $message = "🎲 Nem sikerült a kockadobás, így elveszítetted az Odds potot! 😞";
+            } elseif ($reason === 'user_cashout') {
+                $message = "Kiszálltál az Odds játékból.";
+            }
         }
 
-        if ($payout > 0) {
-            $user->increment('points', $payout);
-        }
-
-        // Töröljük a játék session-t
         session()->forget('game_session');
 
-        // Ha elbukta a kockadobást, felajánljuk az Újrakezdést vagy a Katalógust
-        if ($reason === 'failed_dice') {
-            return redirect()->route('quiz.setup', $quiz)->with('error', $message . ' Szeretnéd újra megpróbálni ezt a kvízt?');
+        if (in_array($reason, ['failed_dice', 'failed_dice_no_points'])) {
+            return redirect()->route('quiz.setup', $quiz)->with('error', $message);
         }
 
-        return redirect()->route('quizzes.index')->with($payout > 0 ? 'success' : 'error', $message);
+        $redirectRoute = Route::has('quizzes.index') ? 'quizzes.index' : 'dashboard';
+        return redirect()->route($redirectRoute)->with('success', $message);
     }
 }

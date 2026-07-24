@@ -45,7 +45,7 @@
                     </div>
                 </div>
 
-                <form action="{{ route('quiz.play', $quiz) }}" method="POST">
+                <form action="{{ route('quiz.start_play', $quiz) }}" method="POST">
                     @csrf
 
                     {{-- 1. JÁTKÉMÓD VÁLASZTÁS --}}

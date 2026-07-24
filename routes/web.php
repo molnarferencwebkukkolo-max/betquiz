@@ -8,7 +8,7 @@ use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\SettingController;
-use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Auth\UserController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,27 +31,29 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // ------------------------------------------------------------------------
     // 2. JÁTÉKOS FELÜLET (Katalógus & Játékmenet)
     // ------------------------------------------------------------------------
-    // Éles kvízek katalógusa (JÁTÉK menüpont)
     Route::get('/quizzes', [QuizController::class, 'showBetForm'])->name('quizzes.index');
 
-    // Egyedi kvíz indítási folyamata (Tét, Nehézség, Start, Játék, Válasz, Dobókocka, Cashout)
     Route::prefix('quiz')->name('quiz.')->group(function () {
-        // Tétbeállító képernyő
+        // Tétbeállító képernyő (quiz.setup)
         Route::get('/setup/{quiz}', [QuizController::class, 'setupQuizPlay'])->name('setup');
 
-        // Játék indítása (Session inicializálás & Tét levonás)
-        Route::post('/play/{quiz}', [QuizController::class, 'startPlay'])->name('play');
+        // Játék indítása (quiz.start_play)
+        Route::post('/play/{quiz}', [QuizController::class, 'startPlay'])->name('start_play');
 
-        // A tényleges játék képernyő
+        // Játék képernyő (quiz.play.screen)
         Route::get('/play/{quiz}/screen', [QuizController::class, 'playScreen'])->name('play.screen');
+        Route::post('/play/{quiz}/next', [QuizController::class, 'nextQuestion'])->name('next_question');
 
-        // Válasz beküldése
+        // Válasz beküldése (quiz.submit_answer)
         Route::post('/play/{quiz}/answer', [QuizController::class, 'submitAnswer'])->name('submit_answer');
 
-        // Dobókocka elgurítása (Rossz válasz mentőöv)
+        // Dobókocka mentőöv (quiz.roll_dice)
         Route::post('/play/{quiz}/roll-dice', [QuizController::class, 'rollDice'])->name('roll_dice');
 
-        // Kiszállás (Nyeremény felvétele)
+        //Emett Brown mentőőv
+        Route::post('/play/{quiz}/time-travel', [QuizController::class, 'timeTravel'])->name('time_travel');
+
+        // Kiszállás (quiz.cashout)
         Route::post('/play/{quiz}/cashout', [QuizController::class, 'cashout'])->name('cashout');
     });
 
@@ -61,11 +63,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // ------------------------------------------------------------------------
     Route::resource('my-quizzes', QuizManagementController::class)->names('my-quizzes');
 
-    // Kérdések szerkesztése és CSV Import a saját kvízekhez
     Route::post('/my-quizzes/{quiz}/questions/import', [QuestionController::class, 'importForQuiz'])->name('my-quizzes.questions.import');
     Route::post('/my-quizzes/{quiz}/questions/store', [QuestionController::class, 'storeForQuiz'])->name('questions.storeForQuiz');
 
-    // Kérdések külön erőforrás-kezelője
     Route::resource('questions', QuestionController::class);
 
 
@@ -81,23 +81,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/password', [ProfileController::class, 'updatePassword'])->name('password');
         Route::delete('/', [ProfileController::class, 'destroy'])->name('destroy');
 
-        // DevTool szerepkörváltás
         Route::post('/switch-role', [ProfileController::class, 'switchRole'])->name('switch-role');
     });
 
 
     // ------------------------------------------------------------------------
-    // 5. ADMINISZTRÁCIÓ (Kategóriák, Beállítások, Felhasználók, Bírálat)
+    // 5. ADMINISZTRÁCIÓ
     // ------------------------------------------------------------------------
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('categories', CategoryController::class);
         Route::resource('settings', SettingController::class);
 
-        // Kvíz jóváhagyása & elutasítása
         Route::post('/quizzes/{quiz}/approve', [QuizManagementController::class, 'approveQuiz'])->name('quizzes.approve');
         Route::post('/quizzes/{quiz}/reject', [QuizManagementController::class, 'rejectQuiz'])->name('quizzes.reject');
 
-        // Felhasználók listája és kvíz tulajdonjog átadás
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::post('/quizzes/{quiz}/transfer', [QuizManagementController::class, 'transferOwnership'])->name('quizzes.transfer');
     });
