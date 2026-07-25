@@ -8,7 +8,7 @@ use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\SettingController;
-use App\Http\Controllers\Auth\UserController;
+use App\Http\Controllers\UserController;
 
 /*
 |--------------------------------------------------------------------------
@@ -50,11 +50,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Dobókocka mentőöv (quiz.roll_dice)
         Route::post('/play/{quiz}/roll-dice', [QuizController::class, 'rollDice'])->name('roll_dice');
 
-        //Emett Brown mentőőv
+        // Emmett Brown mentőöv (quiz.time_travel)
         Route::post('/play/{quiz}/time-travel', [QuizController::class, 'timeTravel'])->name('time_travel');
 
         // Kiszállás (quiz.cashout)
         Route::post('/play/{quiz}/cashout', [QuizController::class, 'cashout'])->name('cashout');
+
+        // 🟢 JAVÍTVA: Like, dislike, restart (A prefix miatt nem kell elé a /quiz/ és a name-be sem a quiz.)
+        Route::post('/{quiz}/toggle-favorite', [QuizController::class, 'toggleFavorite'])->name('toggle-favorite');
+        Route::post('/{quiz}/toggle-dislike', [QuizController::class, 'toggleDislike'])->name('toggle-dislike');
+        Route::post('/{quiz}/reset-answers', [QuizController::class, 'resetQuizAnswers'])->name('reset-answers');
     });
 
 

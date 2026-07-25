@@ -59,4 +59,14 @@ class User extends Authenticatable
 
         return $question->creator_id === $this->id;
     }
+
+    public function favorites()
+    {
+        return $this->belongsToMany(Quiz::class, 'quiz_user_favorites')->withTimestamps();
+    }
+
+    public function dislikes()
+    {
+        return $this->belongsToMany(Quiz::class, 'quiz_user_dislikes')->withTimestamps();
+    }
 }

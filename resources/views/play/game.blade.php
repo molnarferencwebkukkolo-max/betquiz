@@ -12,10 +12,8 @@
                     } else {
                         clearInterval(this.timer);
 
-                        // ⏱️ IDŐ LEJÁRT: Kiszedjük a 'required' attribútumot, hogy üresen is beküldhesse
                         document.querySelectorAll('input[name=selected_option]').forEach(el => el.removeAttribute('required'));
 
-                        // Automatikusan beküldjük a formot
                         let form = document.getElementById('game-form');
                         if (form) {
                             HTMLFormElement.prototype.submit.call(form);
@@ -26,40 +24,82 @@
         }
     }" x-init="startTimer()">
 
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
 
-            {{-- STATS BAR (JÁTÉKMÓD, NYEREMÉNY, LÉPÉS, IDŐZÍTŐ) --}}
-            <div class="bg-white rounded-2xl shadow-lg p-4 mb-6 flex justify-between items-center border border-gray-100">
-                <div>
-                    <span class="text-xs text-gray-500 font-bold uppercase block">Játékmód</span>
-                    <span class="text-lg font-black text-indigo-600">
-                        {{ $game['game_mode'] === 'normal' ? '🎯 Normál' : '🎲 Odds-os' }}
-                    </span>
-                </div>
+            {{-- 🎯 DYNAMIC STATS BAR --}}
+            <div class="bg-white rounded-2xl shadow-lg p-5 mb-6 border border-gray-100">
+                @if($game['game_mode'] === 'normal')
+                    {{-- 🟢 NORMÁL MÓD STATS BAR --}}
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 items-center text-center md:text-left">
+                        <div>
+                            <span class="text-xs text-gray-400 font-bold uppercase block">Zsetonjaim</span>
+                            <span class="text-lg font-black text-amber-500">💰 {{ auth()->user()->points }} PT</span>
+                        </div>
 
-                <div>
-                    <span class="text-xs text-gray-500 font-bold uppercase block">
-                        {{ $game['game_mode'] === 'normal' ? 'Utolsó kör nyereménye' : 'Göngyölt Tét (Pot)' }}
-                    </span>
-                    <span class="text-xl font-black text-green-600">
-                        💰 {{ $game['game_mode'] === 'normal' ? ($game['won_amount'] ?? 0) : $game['current_pot'] }} PT
-                    </span>
-                </div>
+                        <div>
+                            <span class="text-xs text-gray-400 font-bold uppercase block">Tét</span>
+                            <span class="text-lg font-black text-indigo-600">🎯 {{ $game['initial_bet'] }} PT</span>
+                        </div>
 
-                <div>
-                    <span class="text-xs text-gray-500 font-bold uppercase block">Kérdés</span>
-                    <span class="text-lg font-black text-gray-700">
-                        #{{ $game['current_step'] }} {{ $game['target_count'] ? '/ ' . $game['target_count'] : '' }}
-                    </span>
-                </div>
+                        <div>
+                            <span class="text-xs text-gray-400 font-bold uppercase block">Szorzók</span>
+                            <span class="text-sm font-extrabold text-gray-700 bg-gray-100 px-2 py-1 rounded-lg inline-block">
+                                Nehézség: {{ $difficultyMultiplier }}x | Idő: {{ $timeMultiplier }}x
+                            </span>
+                        </div>
 
-                <div class="text-right">
-                    <span class="text-xs text-gray-500 font-bold uppercase block">Hátralévő idő</span>
-                    <span class="text-2xl font-black" :class="timeLeft <= 5 ? 'text-red-600 animate-pulse' : 'text-indigo-600'" x-text="timeLeft + 's'"></span>
-                </div>
+                        <div>
+                            <span class="text-xs text-gray-400 font-bold uppercase block">Várható nyeremény</span>
+                            <span class="text-xl font-black text-green-600">💰 +{{ $expectedWin }} PT</span>
+                        </div>
+
+                        <div class="col-span-2 md:col-span-1 text-right">
+                            <span class="text-xs text-gray-400 font-bold uppercase block">Hátralévő idő</span>
+                            <span class="text-2xl font-black" :class="timeLeft <= 5 ? 'text-red-600 animate-pulse' : 'text-indigo-600'" x-text="timeLeft + 's'"></span>
+                        </div>
+                    </div>
+                @else
+                    {{-- 🎲 ODDS MÓD STATS BAR --}}
+                    <div class="grid grid-cols-2 md:grid-cols-6 gap-4 items-center text-center md:text-left">
+                        <div>
+                            <span class="text-xs text-gray-400 font-bold uppercase block">Zsetonjaim</span>
+                            <span class="text-lg font-black text-amber-500">💰 {{ auth()->user()->points }} PT</span>
+                        </div>
+
+                        <div>
+                            <span class="text-xs text-gray-400 font-bold uppercase block">Alaptét</span>
+                            <span class="text-lg font-black text-indigo-600">🎯 {{ $game['initial_bet'] }} PT</span>
+                        </div>
+
+                        <div>
+                            <span class="text-xs text-gray-400 font-bold uppercase block">Nyereménybank</span>
+                            <span class="text-lg font-black text-emerald-600">🏆 {{ $game['current_pot'] }} PT</span>
+                        </div>
+
+                        <div>
+                            <span class="text-xs text-gray-400 font-bold uppercase block">Szorzók</span>
+                            <span class="text-xs font-extrabold text-gray-700 bg-gray-100 px-2 py-1 rounded-lg inline-block">
+                                {{ $difficultyMultiplier }}x × {{ $timeMultiplier }}x
+                            </span>
+                        </div>
+
+                        <div>
+                            <span class="text-xs text-gray-400 font-bold uppercase block">
+                                {{ $game['current_step'] == $game['target_count'] ? 'Várható Nyeremény' : 'Nyereménybank növekedés' }}
+                            </span>
+                            <span class="text-lg font-black text-amber-600">💰 +{{ $expectedWin }} PT</span>
+                        </div>
+
+                        <div class="col-span-2 md:col-span-1 text-right">
+                            <span class="text-xs text-gray-400 font-bold uppercase block">Kérdés</span>
+                            <span class="text-sm font-black text-gray-700">#{{ $game['current_step'] }} / {{ $game['target_count'] }}</span>
+                            <span class="text-xl font-black block" :class="timeLeft <= 5 ? 'text-red-600 animate-pulse' : 'text-indigo-600'" x-text="timeLeft + 's'"></span>
+                        </div>
+                    </div>
+                @endif
             </div>
 
-            {{-- 1. ESET: NORMÁL MÓD HELYES VÁLASZ UTÁNI DÖNTÉSI KÉPERNYŐ --}}
+            {{-- 1. ESET: HELYES VÁLASZ UTÁNI DÖNTÉSI KÉPERNYŐ (NORMÁL ÉS ODDS MÓDBAN IS) --}}
             @if(!empty($game['awaiting_decision']))
                 <div class="bg-gradient-to-br from-emerald-900 via-teal-950 to-slate-900 text-white rounded-3xl p-8 text-center shadow-2xl mb-6 border border-emerald-500/30">
 
@@ -68,31 +108,50 @@
                     </div>
 
                     <h3 class="text-3xl font-black mb-2">HELYES VÁLASZ!</h3>
-                    <p class="text-emerald-200 text-lg mb-4">
-                        Ebben a körben nyertél: <strong class="text-amber-400 font-black text-2xl">+{{ $game['won_amount'] }} PT-t</strong>!
-                    </p>
 
-                    <div class="bg-slate-900/60 rounded-2xl p-4 mb-8 max-w-md mx-auto border border-emerald-500/20">
-                        <p class="text-slate-300 text-sm">
-                            A nyereményt azonnal jóváírtuk az egyenlegeden! <br>
-                            Jelenlegi egyenleged: <strong class="text-amber-400 text-lg font-bold">{{ auth()->user()->points }} PT</strong>
+                    @if($game['game_mode'] === 'normal')
+                        <p class="text-emerald-200 text-lg mb-4">
+                            Ebben a körben nyertél: <strong class="text-amber-400 font-black text-2xl">+{{ $game['won_amount'] }} PT-t</strong>!
                         </p>
-                    </div>
+                        <div class="bg-slate-900/60 rounded-2xl p-4 mb-8 max-w-md mx-auto border border-emerald-500/20">
+                            <p class="text-slate-300 text-sm">
+                                A nyereményt azonnal jóváírtuk az egyenlegeden! <br>
+                                Jelenlegi egyenleged: <strong class="text-amber-400 text-lg font-bold">{{ auth()->user()->points }} PT</strong>
+                            </p>
+                        </div>
+                    @else
+                        <p class="text-emerald-200 text-lg mb-4">
+                            A Nyereménybankod megnőtt: <strong class="text-amber-400 font-black text-2xl">{{ $game['current_pot'] }} PT-re</strong>!
+                        </p>
+                    @endif
 
-                    <div class="flex flex-col sm:flex-row gap-4 justify-center items-center max-w-lg mx-auto">
-                        {{-- KISZÁLLÁS / BEFEJEZÉS --}}
-                        <form action="{{ route('quiz.cashout', $quiz) }}" method="POST" class="w-full sm:w-auto">
-                            @csrf
-                            <button type="submit" class="w-full py-4 px-8 bg-slate-800 hover:bg-slate-700 text-rose-300 font-bold rounded-2xl border border-rose-500/30 transition transform active:scale-95 shadow-lg">
-                                🛑 Befejezem a játékot
-                            </button>
-                        </form>
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center items-center max-w-xl mx-auto">
+                        @if($game['game_mode'] === 'normal')
+                            {{-- NORMÁL MÓD KISZÁLLÁS --}}
+                            <form action="{{ route('quiz.cashout', $quiz) }}" method="POST" class="w-full sm:w-auto">
+                                @csrf
+                                <button type="submit" class="w-full py-4 px-8 bg-slate-800 hover:bg-slate-700 text-rose-300 font-bold rounded-2xl border border-rose-500/30 transition transform active:scale-95 shadow-lg">
+                                    🛑 Befejezem a játékot
+                                </button>
+                            </form>
+                        @else
+                            {{-- ODDS MÓD KISZÁLLÁS: 20%-ÉRT --}}
+                            @php
+                                $cashout20 = (int)round($game['current_pot'] * 0.20);
+                            @endphp
+                            <form action="{{ route('quiz.cashout', $quiz) }}" method="POST" class="w-full sm:w-auto" onsubmit="return confirm('Biztosan kiszállsz? Így a nyereménybank 20%-át ({{ $cashout20 }} PT) kapod meg!');">
+                                @csrf
+                                <button type="submit" class="w-full py-4 px-8 bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold rounded-2xl border border-amber-500/30 transition transform active:scale-95 shadow-lg">
+                                    🛑 Kiszállok 20%-ért ({{ $cashout20 }} PT)
+                                </button>
+                            </form>
+                        @endif
 
-                        {{-- FOLYTATÁS A BEÁLLÍTOTT TÉTTEL --}}
+                        {{-- FOLYTATÁS --}}
                         <form action="{{ route('quiz.next_question', $quiz) }}" method="POST" class="w-full sm:w-auto">
                             @csrf
                             <button type="submit" class="w-full py-4 px-8 bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-500 hover:to-teal-600 text-slate-950 font-black text-lg rounded-2xl shadow-lg hover:shadow-emerald-500/30 transition transform active:scale-95">
-                                🚀 Következő kérdés (Tét: {{ $game['initial_bet'] }} PT)
+                                🚀 Következő kérdés
                             </button>
                         </form>
                     </div>
@@ -123,7 +182,6 @@
                     }
                 }" class="bg-gradient-to-br from-slate-900 via-indigo-950 to-purple-900 text-white rounded-3xl p-8 text-center shadow-2xl mb-6 border border-indigo-500/30">
 
-                    {{-- STATUS BADGE --}}
                     <div class="mb-4 flex justify-center gap-2">
                         @if($remainingFreeRolls > 0)
                             <span class="px-3 py-1 bg-green-500/20 text-green-300 border border-green-500/40 text-xs font-black rounded-full uppercase tracking-wider">
@@ -141,7 +199,6 @@
                         Dobj 6-ost a kockával a nyereményért!
                     </p>
 
-                    {{-- ANIMÁLT KOCKA --}}
                     <div class="my-6 flex justify-center items-center">
                         <div :class="rolling ? 'animate-bounce scale-110' : ''"
                              class="w-28 h-28 bg-white text-slate-900 rounded-3xl shadow-2xl flex items-center justify-center text-6xl font-black border-4 border-amber-400 transition-all transform duration-200 select-none">
@@ -158,17 +215,16 @@
                         @csrf
                     </form>
 
-                    {{-- GOMB --}}
                     <button type="button"
                             @click="rollDice()"
                             :disabled="rolling"
-                            class="py-4 px-10 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-black text-xl rounded-2xl shadow-lg hover:shadow-orange-500/50 transition transform active:scale-95 disabled:opacity-50">
+                            class="py-4 px-10 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-black text-xl rounded-2xl shadow-lg transition transform active:scale-95 disabled:opacity-50">
                         <span x-text="rolling ? 'KOCKA PÖRGETÉSE...' : '{{ $remainingFreeRolls > 0 ? '🎲 INGYENES GURÍTÁS!' : '💳 GURÍTÁS (100 PT)' }}'"></span>
                     </button>
 
                 </div>
 
-                {{-- 3. ESET: IDŐLEJÁRÁS UTÁN ➔ DOKI IDŐUGRÁSA (88 MPH MENTŐÖV) --}}
+                {{-- 3. ESET: IDŐLEJÁRÁS UTÁN ➔ DOKI IDŐUGRÁSA --}}
             @elseif(!empty($game['awaiting_time_travel']))
                 @php
                     $freeTravelsUsed = auth()->user()->lifetime_free_time_travels_used ?? 0;
@@ -272,18 +328,6 @@
                         </button>
                     </form>
                 </div>
-
-                {{-- KISZÁLLÁS GOMB (CSAK A NORMÁL MÓDBAN ÉS KÉRDÉS KÖZBEN JELENIK MEG) --}}
-                @if($game['game_mode'] === 'normal')
-                    <div class="flex justify-end">
-                        <form action="{{ route('quiz.cashout', $quiz) }}" method="POST" onsubmit="return confirm('Biztosan be szeretnéd fejezni a játékot? Az eddig megnyert pontjaid már a számládon vannak.');">
-                            @csrf
-                            <button type="submit" class="py-3 px-6 bg-red-50 hover:bg-red-100 text-red-600 font-extrabold rounded-xl border border-red-200 transition">
-                                🛑 Befejezem a játékot
-                            </button>
-                        </form>
-                    </div>
-                @endif
             @endif
 
         </div>
