@@ -61,7 +61,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // ------------------------------------------------------------------------
     // 3. ALKOTÓI FELÜLET (Saját kvízek szerkesztése, létrehozása & CSV import)
     // ------------------------------------------------------------------------
-    Route::resource('my-quizzes', QuizManagementController::class)->names('my-quizzes');
+    Route::resource('my-quizzes', QuizManagementController::class)
+        ->names('my-quizzes')
+        ->parameters(['my-quizzes' => 'quiz']);
 
     Route::post('/my-quizzes/{quiz}/questions/import', [QuestionController::class, 'importForQuiz'])->name('my-quizzes.questions.import');
     Route::post('/my-quizzes/{quiz}/questions/store', [QuestionController::class, 'storeForQuiz'])->name('questions.storeForQuiz');

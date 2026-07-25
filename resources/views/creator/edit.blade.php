@@ -16,8 +16,9 @@
 
     <!-- Vissza gomb -->
     <div class="mb-6">
-        <a href="{{ route('my-quizzes.show', $quiz->id) }}" class="text-sm font-bold text-gray-500 hover:text-gray-800 transition">
-            ← Vissza a Kvízhez
+        <a href="{{ route('my-quizzes.show', $quiz) }}" class="text-sm font-bold text-gray-500 hover:text-gray-800 transition">
+            ← Vissza a Kvízhez</a>
+
         </a>
     </div>
 
@@ -32,7 +33,7 @@
             </div>
         @endif
 
-        <form action="{{ route('quizzes.update', $quiz->id) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+        <form action="{{ route('my-quizzes.update', $quiz->id) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
             @csrf
             @method('PUT')
 

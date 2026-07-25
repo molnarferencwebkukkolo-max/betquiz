@@ -97,16 +97,22 @@ class QuizController extends Controller
      */
     public function showBetForm(Request $request)
     {
+        /** @var \App\Models\User $user */
         $user = Auth::user();
         $categories = Category::all();
 
-        $quizzesQuery = Quiz::where('status', 'published')
-            ->where('creator_id', '!=', $user->id)
-            ->where('questions_count', '>=', 100)
+        $quizzesQuery = Quiz::where(function($q) {
+            // Elfogadjuk az 'approved' és 'published' státuszt is!
+            $q->where('status', 'approved')
+                ->orWhere('status', 'published');
+        })
+            ->where('creator_id', '!=', $user->id) // Mások kvízei
+            ->has('questions', '>=', 100)          // A reláción keresztül nézzük a legalább 100 kérdést!
             ->with(['category', 'creator'])
             ->withCount('questions');
 
-        if ($request->has('category_id') && $request->category_id) {
+        // Kategória szűrő
+        if ($request->filled('category_id')) {
             $quizzesQuery->where('category_id', $request->category_id);
         }
 
