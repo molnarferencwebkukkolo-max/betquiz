@@ -74,6 +74,39 @@
                 </div>
             </div>
 
+            <!-- Játékélmény beállítások -->
+            <div class="password-card">
+                <h3 class="password-card-title">🎮 Játékélmény</h3>
+
+                <form action="{{ route('profile.game-experience') }}" method="POST" style="display: flex; flex-direction: column; gap: 1rem;">
+                    @csrf
+
+                    <div>
+                        <label class="form-label">Időutazás segítség:</label>
+
+                        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem;">
+                            <label style="display: block; cursor: pointer;">
+                                <input type="radio" name="time_travel_theme" value="back_to_future" {{ ($user->time_travel_theme ?? 'back_to_future') === 'back_to_future' ? 'checked' : '' }} style="margin-right: 0.4rem;">
+                                <strong>Vissza a jövőbe</strong>
+                            </label>
+
+                            <label style="display: block; cursor: pointer;">
+                                <input type="radio" name="time_travel_theme" value="harry_potter" {{ ($user->time_travel_theme ?? 'back_to_future') === 'harry_potter' ? 'checked' : '' }} style="margin-right: 0.4rem;">
+                                <strong>Harry Potter</strong>
+                            </label>
+                        </div>
+
+                        @error('time_travel_theme') <span style="font-size: 0.75rem; color: #dc2626;">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <button type="submit" class="btn-save-password">
+                            Mentés
+                        </button>
+                    </div>
+                </form>
+            </div>
+
             <!-- Jelszó módosítása -->
             <div class="password-card">
                 <h3 class="password-card-title">🔑 Jelszó Módosítása</h3>

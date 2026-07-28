@@ -229,6 +229,7 @@
                 @php
                     $freeTravelsUsed = auth()->user()->lifetime_free_time_travels_used ?? 0;
                     $remainingTravels = max(0, 3 - $freeTravelsUsed);
+                    $timeTravelTheme = auth()->user()->time_travel_theme ?? 'back_to_future';
                 @endphp
 
                 <div x-data="{
@@ -250,7 +251,7 @@
                             }
                         }, 40);
                     }
-                }" class="bg-gradient-to-br from-slate-950 via-amber-950 to-slate-900 text-white rounded-3xl p-8 text-center shadow-2xl mb-6 border-2 border-amber-500/40 relative overflow-hidden">
+                }" class="{{ $timeTravelTheme === 'harry_potter' ? 'bg-gradient-to-br from-indigo-950 via-violet-950 to-slate-950 border-violet-400/50' : 'bg-gradient-to-br from-slate-950 via-amber-950 to-slate-900 border-amber-500/40' }} text-white rounded-3xl p-8 text-center shadow-2xl mb-6 border-2 relative overflow-hidden">
 
                     <div class="mb-4 flex justify-center gap-2">
                         @if($remainingTravels > 0)
@@ -264,17 +265,46 @@
                         @endif
                     </div>
 
-                    <h3 class="text-3xl font-black mb-2 text-amber-400 font-mono">⏱️ KIFUTOTTÁL AZ IDŐBŐL!</h3>
-                    <p class="text-gray-300 text-sm max-w-lg mx-auto mb-6">
-                        A <strong class="text-amber-400">Fluxuskondenzátor</strong> segítségével visszapörgetheted az órát a kérdés elejére!
-                    </p>
+                    @if($timeTravelTheme === 'harry_potter')
+                        <h3 class="text-3xl font-black mb-2 text-violet-200">⏱️ KIFUTOTTÁL AZ IDŐBŐL!</h3>
+                        <p class="text-violet-100 text-sm max-w-lg mx-auto mb-6">
+                            Hermione megpörgeti az <strong class="text-amber-300">Időnyerőt</strong>, és visszaforgatja az órát a kérdés elejére.
+                        </p>
 
-                    <div class="my-6 max-w-xs mx-auto bg-black border-4 border-gray-800 rounded-2xl p-4 shadow-inner flex flex-col items-center justify-center font-mono">
-                        <span class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">SEBESSÉGMÉRŐ</span>
-                        <div class="text-5xl font-black tracking-widest" :class="speed >= 88 ? 'text-amber-400 animate-pulse' : 'text-red-600'">
-                            <span x-text="speed"></span> <span class="text-xl">MPH</span>
+                        <div class="my-6 max-w-xs mx-auto relative flex items-center justify-center">
+                            <div class="absolute inset-0 rounded-full bg-violet-400/20 blur-2xl" :class="traveling ? 'animate-pulse' : ''"></div>
+                            <div class="relative w-40 h-40 rounded-full border-4 border-amber-300 bg-slate-950/80 shadow-2xl flex items-center justify-center"
+                                 :class="traveling ? 'animate-spin' : ''"
+                                 style="animation-duration: 0.9s;">
+                                <div class="absolute w-28 h-28 rounded-full border-2 border-amber-200/80"></div>
+                                <div class="absolute h-32 w-1 bg-amber-300 rounded-full"></div>
+                                <div class="absolute w-32 h-1 bg-amber-300 rounded-full"></div>
+                                <span class="relative text-4xl">✦</span>
+                            </div>
                         </div>
-                    </div>
+                    @else
+                        <h3 class="text-3xl font-black mb-2 text-amber-400 font-mono">⏱️ KIFUTOTTÁL AZ IDŐBŐL!</h3>
+                        <p class="text-gray-300 text-sm max-w-lg mx-auto mb-6">
+                            Emmett Brown segít rajtad: a <strong class="text-amber-400">Fluxuskondenzátor</strong> visszapörgeti az órát a kérdés elejére.
+                        </p>
+
+                        <div class="my-6 flex flex-col items-center gap-4">
+                            <div class="w-24 h-24 rounded-full bg-amber-100 text-slate-900 border-4 border-amber-400 shadow-xl flex items-center justify-center relative">
+                                <div class="absolute -left-2 -right-2 -top-2 h-8 rounded-full bg-white"></div>
+                                <div class="relative mt-4 text-center">
+                                    <div class="text-3xl">⚗</div>
+                                    <div class="text-xs font-black">DOKI</div>
+                                </div>
+                            </div>
+
+                            <div class="max-w-xs w-full bg-black border-4 border-gray-800 rounded-2xl p-4 shadow-inner flex flex-col items-center justify-center font-mono">
+                                <span class="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">SEBESSÉGMÉRŐ</span>
+                                <div class="text-5xl font-black tracking-widest" :class="speed >= 88 ? 'text-amber-400 animate-pulse' : 'text-red-600'">
+                                    <span x-text="speed"></span> <span class="text-xl">MPH</span>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
 
                     <form id="time-travel-form" action="{{ route('quiz.time_travel', $quiz) }}" method="POST" class="hidden">
                         @csrf
@@ -283,8 +313,12 @@
                     <button type="button"
                             @click="triggerTimeTravel()"
                             :disabled="traveling"
-                            class="py-4 px-10 bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 hover:from-amber-600 text-slate-950 font-black text-xl rounded-2xl shadow-xl transition transform active:scale-95 disabled:opacity-50">
-                        <span x-text="traveling ? '⚡ VISSZAÚT A MÚLTBA...' : '🚗 VISSZA A MÚLTBA (ÓRA ÚJRAINDÍTÁSA)'"></span>
+                            class="py-4 px-10 {{ $timeTravelTheme === 'harry_potter' ? 'bg-gradient-to-r from-violet-300 via-fuchsia-300 to-amber-200 hover:from-violet-200' : 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 hover:from-amber-600' }} text-slate-950 font-black text-xl rounded-2xl shadow-xl transition transform active:scale-95 disabled:opacity-50">
+                        @if($timeTravelTheme === 'harry_potter')
+                            <span x-text="traveling ? 'IDŐNYERŐ PÖRGETÉSE...' : 'IDŐNYERŐ HASZNÁLATA'"></span>
+                        @else
+                            <span x-text="traveling ? '⚡ VISSZAÚT A MÚLTBA...' : '🚗 VISSZA A MÚLTBA (ÓRA ÚJRAINDÍTÁSA)'"></span>
+                        @endif
                     </button>
                 </div>
 
@@ -298,8 +332,15 @@
                         <span class="text-xs text-gray-400">ID: #{{ $currentQuestion->id }}</span>
                     </div>
 
+                    @php
+                        $questionText = $currentQuestion->question_text;
+                        if (is_array($questionText)) {
+                            $questionText = $questionText['hu'] ?? $questionText['en'] ?? reset($questionText);
+                        }
+                    @endphp
+
                     <h2 class="text-2xl font-extrabold text-gray-800 mb-8 leading-snug">
-                        {{ $currentQuestion->question_text }}
+                        {{ $questionText }}
                     </h2>
 
                     {{-- VÁLASZ LEHETŐSÉGEK FORM --}}
@@ -313,11 +354,17 @@
                             @endphp
 
                             @foreach($answersList as $index => $answer)
+                                @php
+                                    $answerText = is_object($answer) ? $answer->option_text : ($answer['option_text'] ?? '');
+                                    if (is_array($answerText)) {
+                                        $answerText = $answerText['hu'] ?? $answerText['en'] ?? reset($answerText);
+                                    }
+                                @endphp
                                 <label class="p-4 border-2 border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 rounded-2xl cursor-pointer transition flex items-center gap-3 group">
                                     <input type="radio" name="selected_option" value="{{ is_object($answer) ? $answer->id : ($answer['id'] ?? $index) }}" class="w-5 h-5 text-indigo-600 focus:ring-indigo-500 border-gray-300" required>
                                     <span class="font-black text-indigo-600 group-hover:text-indigo-800">{{ chr(65 + $index) }}:</span>
                                     <span class="text-gray-700 font-semibold group-hover:text-gray-900">
-                                        {{ is_object($answer) ? $answer->option_text : ($answer['option_text'] ?? '') }}
+                                        {{ $answerText }}
                                     </span>
                                 </label>
                             @endforeach

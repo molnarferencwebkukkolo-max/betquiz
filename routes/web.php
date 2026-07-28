@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QuizController;
+use App\Http\Controllers\RollDiceController;
+use App\Http\Controllers\TimeTravellerController;
 use App\Http\Controllers\QuizManagementController;
 use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\PageController;
@@ -48,10 +50,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/play/{quiz}/answer', [QuizController::class, 'submitAnswer'])->name('submit_answer');
 
         // Dobókocka mentőöv (quiz.roll_dice)
-        Route::post('/play/{quiz}/roll-dice', [QuizController::class, 'rollDice'])->name('roll_dice');
+        Route::post('/play/{quiz}/roll-dice', [RollDiceController::class, 'rollDice'])->name('roll_dice');
 
         // Emmett Brown mentőöv (quiz.time_travel)
-        Route::post('/play/{quiz}/time-travel', [QuizController::class, 'timeTravel'])->name('time_travel');
+        Route::post('/play/{quiz}/time-travel', [TimeTravellerController::class, 'timeTravel'])->name('time_travel');
 
         // Kiszállás (quiz.cashout)
         Route::post('/play/{quiz}/cashout', [QuizController::class, 'cashout'])->name('cashout');
@@ -85,6 +87,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [ProfileController::class, 'show'])->name('show');
         Route::get('/edit', [ProfileController::class, 'edit'])->name('edit');
         Route::patch('/', [ProfileController::class, 'update'])->name('update');
+        Route::post('/game-experience', [ProfileController::class, 'updateGameExperience'])->name('game-experience');
         Route::post('/password', [ProfileController::class, 'updatePassword'])->name('password');
         Route::delete('/', [ProfileController::class, 'destroy'])->name('destroy');
 

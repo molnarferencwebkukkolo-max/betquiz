@@ -14,6 +14,24 @@
                 <h3 class="text-2xl font-bold text-gray-800 mb-2">🎮 {{ $quiz->title }} — Játék beállítása</h3>
                 <p class="text-gray-600 mb-6">{{ $quiz->description }}</p>
 
+                @if(session('success'))
+                    <div class="mb-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
+                        {{ session('success') }}
+                    </div>
+                @endif
+
+                @if(session('error'))
+                    <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                        {{ session('error') }}
+                    </div>
+                @endif
+
+                @if($errors->any())
+                    <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                        {{ $errors->first() }}
+                    </div>
+                @endif
+
                 {{-- Kvíz infó sáv --}}
                 <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-8 grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
                     <div>
@@ -73,11 +91,11 @@
 
                     {{-- 3. KVÍZ FELÉLESZTÉSE GOMB --}}
                     @if($answeredCount > 0)
-                        <form action="{{ route('quiz.reset-answers', $quiz->id) }}" method="POST" onsubmit="return confirm('Biztosan feléleszted a kvízt? Ez {{ $resetCost }} PT-be kerül!')">
+                        <form action="{{ route('quiz.reset-answers', $quiz->id) }}" method="POST" onsubmit="return confirm('Biztosan feléleszted a kvízt? Ez {{ $resetCost }} PT-be kerül ({{ $resetCostPerQuestion }} PT / kérdés).')">
                             @csrf
                             <button type="submit"
                                     class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-xl transition flex items-center gap-2 shadow-sm">
-                                <span>⚡ Kvíz felélesztése ({{ $answeredCount }} kérdés = {{ $resetCost }} PT)</span>
+                                <span>⚡ Kvíz felélesztése ({{ $answeredCount }} kérdés x {{ $resetCostPerQuestion }} PT = {{ $resetCost }} PT)</span>
                             </button>
                         </form>
                     @endif

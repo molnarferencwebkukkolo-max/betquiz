@@ -88,6 +88,19 @@ class ProfileController extends Controller
         return redirect()->back()->with('success', 'Szerepkör frissítve: ' . $user->role);
     }
 
+    public function updateGameExperience(Request $request)
+    {
+        $validated = $request->validate([
+            'time_travel_theme' => 'required|in:back_to_future,harry_potter',
+        ]);
+
+        $request->user()->update([
+            'time_travel_theme' => $validated['time_travel_theme'],
+        ]);
+
+        return redirect()->back()->with('success', 'Játékélmény beállítások mentve.');
+    }
+
 
 
     public function updatePassword(Request $request)

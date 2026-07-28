@@ -129,7 +129,7 @@
                             <span>👤 {{ $quiz->creator->name ?? 'Rendszer' }}</span>
                         </div>
 
-                        <a href="{{ route('quizzes.index', ['quiz_id' => $quiz->id]) }}" class="btn-start-quiz">
+                        <a href="{{ route('quiz.setup', $quiz) }}" class="btn-start-quiz">
                             🎮 Játék Indítása
                         </a>
                     </div>

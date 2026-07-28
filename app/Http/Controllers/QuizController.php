@@ -6,6 +6,7 @@ use App\Models\Quiz;
 use App\Models\User;
 use App\Models\Question;
 use App\Models\Category;
+use App\Services\PointService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\Route;
 
 class QuizController extends Controller
 {
+    public function __construct(private PointService $pointService) {}
+
     /**
      * Műszerfal nézet (Főoldal - /dashboard)
      */
@@ -181,7 +184,14 @@ class QuizController extends Controller
             ->where('quiz_id', $quiz->id)
             ->exists();
 
-        $resetCost  = $answeredCount * 20; // 20 PT / megválaszolt kérdés
+        $resetCount = Schema::hasTable('user_quiz_resets')
+            ? (int) DB::table('user_quiz_resets')
+                ->where('user_id', $user->id)
+                ->where('quiz_id', $quiz->id)
+                ->value('reset_count')
+            : 0;
+        $resetCostPerQuestion = ($resetCount + 1) * 20;
+        $resetCost = $answeredCount * $resetCostPerQuestion;
 
         $viewName = view()->exists('play.setup')
             ? 'play.setup'
@@ -194,7 +204,9 @@ class QuizController extends Controller
             'answeredCount',
             'isFavorite',
             'isDisliked',
-            'resetCost'
+            'resetCost',
+            'resetCostPerQuestion',
+            'resetCount'
         ));
     }
     /**
@@ -301,22 +313,44 @@ class QuizController extends Controller
             return back()->with('error', 'Ebben a kvízben még nincs feléleszthető kérdésed!');
         }
 
-        $costPerQuestion = 20;
+        $resetCount = (int) DB::table('user_quiz_resets')
+            ->where('user_id', $user->id)
+            ->where('quiz_id', $quiz->id)
+            ->value('reset_count');
+        $costPerQuestion = ($resetCount + 1) * 20;
         $totalCost = $answeredCount * $costPerQuestion;
 
         if ($user->points < $totalCost) {
             return back()->with('error', "Nincs elegendő pontod a felélesztéshez! Szükséges: {$totalCost} PT, jelenlegi egyenleged: {$user->points} PT.");
         }
 
-        // Pontok levonása és válaszok törlése
-        $user->decrement('points', $totalCost);
+        DB::transaction(function () use ($user, $quiz, $quizQuestionIds, $totalCost, $resetCount) {
+            $user->decrement('points', $totalCost);
 
-        DB::table('user_answers')
-            ->where('user_id', $user->id)
-            ->whereIn('question_id', $quizQuestionIds)
-            ->delete();
+            DB::table('user_answers')
+                ->where('user_id', $user->id)
+                ->whereIn('question_id', $quizQuestionIds)
+                ->delete();
 
-        return back()->with('success', "⚡ Kvíz sikeresen felélesztve! Lezártunk {$answeredCount} kérdést {$totalCost} PT-ért.");
+            if ($resetCount > 0) {
+                DB::table('user_quiz_resets')
+                    ->where('user_id', $user->id)
+                    ->where('quiz_id', $quiz->id)
+                    ->increment('reset_count', 1, ['updated_at' => now()]);
+            } else {
+                DB::table('user_quiz_resets')->insert([
+                    'user_id' => $user->id,
+                    'quiz_id' => $quiz->id,
+                    'reset_count' => 1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        });
+
+        $nextCostPerQuestion = ($resetCount + 2) * 20;
+
+        return back()->with('success', "Kvíz sikeresen felélesztve! Lezártunk {$answeredCount} kérdést {$totalCost} PT-ért. Következő felélesztési ár: {$nextCostPerQuestion} PT / kérdés.");
     }
     /**
      * 1. Játék indítása (Tét levonása + Session)
@@ -346,10 +380,14 @@ class QuizController extends Controller
             ->toArray();
 
         $remainingCount = count($quizQuestionIds) - count($answeredIds);
-        $requestedCount = $mode === 'odds' ? ((int)($validated['question_count'] ?? 10)) : 10;
+        $requestedCount = $mode === 'odds' ? ((int)($validated['question_count'] ?? 10)) : min(10, $remainingCount);
 
-        if ($remainingCount < 10) {
-            return back()->withErrors(['game_mode' => 'Ebben a kvízben kevesebb mint 10 megválaszolatlan kérdés maradt, így új játék már nem indítható!']);
+        if ($remainingCount < 1) {
+            return back()->withErrors(['game_mode' => 'Ebben a kvízben nincs megválaszolatlan kérdés. Élessz fel kérdéseket, és utána indíts új játékot!']);
+        }
+
+        if ($mode === 'odds' && $remainingCount < 10) {
+            return back()->withErrors(['game_mode' => 'Odds módban legalább 10 megválaszolatlan kérdés kell. Normál módban a maradék kérdésekkel még elindíthatod a játékot.']);
         }
 
         if ($remainingCount < $requestedCount) {
@@ -381,7 +419,9 @@ class QuizController extends Controller
             10 => 2.0,
         ];
 
-        $targetCount = !empty($validated['question_count']) ? (int) $validated['question_count'] : 10;
+        $targetCount = $mode === 'odds'
+            ? (!empty($validated['question_count']) ? (int) $validated['question_count'] : 10)
+            : $requestedCount;
 
         session()->put('game_session', [
             'quiz_id'           => $quiz->id,
@@ -431,6 +471,15 @@ class QuizController extends Controller
         // Összevisszuk a két tömböt, hogy semmilyen duplikáció ne lehessen!
         $allExcludedIds = array_unique(array_merge($dbAnsweredIds, $sessionAnsweredIds));
 
+        $currentQuestion = null;
+        $currentQuestionId = $game['current_question_id'] ?? null;
+
+        if ($currentQuestionId && !in_array((int)$currentQuestionId, $allExcludedIds, true)) {
+            $currentQuestion = $quiz->questions()
+                ->where('questions.id', (int)$currentQuestionId)
+                ->first();
+        }
+
         // Kérdés lekérdezése a kizárásokkal
         $query = $quiz->questions()->whereNotIn('questions.id', $allExcludedIds);
 
@@ -438,7 +487,14 @@ class QuizController extends Controller
             $query->where('difficulty', $game['difficulty']);
         }
 
-        $currentQuestion = $query->inRandomOrder()->first();
+        if (!$currentQuestion) {
+            $currentQuestion = $query->inRandomOrder()->first();
+
+            if ($currentQuestion) {
+                $game['current_question_id'] = $currentQuestion->id;
+                session()->put('game_session', $game);
+            }
+        }
 
         // Ha elfogytak a választható kérdések
         if (!$currentQuestion) {
@@ -525,6 +581,11 @@ class QuizController extends Controller
         $options = method_exists($question, 'options') ? $question->options : $question->answers;
         $correctOption = $options->where('is_correct', true)->first();
         $isCorrect = $selectedOptionId && $correctOption && ((int)$selectedOptionId === (int)$correctOption->id);
+        $wasAlreadyAnsweredCorrectly = DB::table('user_answers')
+            ->where('user_id', $user->id)
+            ->where('question_id', (int)$questionId)
+            ->where('is_correct', 1)
+            ->exists();
 
         if ($isCorrect) {
             // 🟢 HELYES VÁLASZ LOGIKA
@@ -568,12 +629,17 @@ class QuizController extends Controller
                 ]
             );
 
+            if (!$wasAlreadyAnsweredCorrectly) {
+                $this->pointService->rewardCreator($quiz, $user->id);
+            }
+
             // 📌 2. SESSION MENTÉS
             $answered = $game['answered_ids'] ?? [];
             if (!in_array((int)$questionId, $answered, true)) {
                 $answered[] = (int)$questionId;
             }
             $game['answered_ids'] = $answered;
+            unset($game['current_question_id']);
 
             // 🎯 3. LÉPTETÉS ÉS CÉLSZÁM ELLENŐRZÉSE
             $currentStep = count($game['answered_ids']);
@@ -612,6 +678,7 @@ class QuizController extends Controller
             } else {
                 $game['awaiting_time_travel'] = true;
                 $game['awaiting_dice'] = false;
+                $game['current_question_id'] = (int)$questionId;
                 session()->put('game_session', $game);
 
                 return redirect()->route('quiz.play.screen', $quiz)->with('error', '⏱️ Kifutottál az időből! Használd a Fluxus-Mentőövet!');
@@ -671,6 +738,7 @@ class QuizController extends Controller
 
             $game['current_step'] = ($game['current_step'] ?? 1) + 1;
             unset($game['pending_dice_win']);
+            unset($game['current_question_id']);
 
             if (($game['game_mode'] ?? 'normal') === 'odds' && $game['current_step'] > $game['target_count']) {
                 session()->put('game_session', $game);
@@ -744,6 +812,7 @@ class QuizController extends Controller
 
         // Feloldjuk a döntési állapotot
         $game['awaiting_decision'] = false;
+        unset($game['current_question_id']);
         session()->put('game_session', $game);
 
         return redirect()->route('quiz.play.screen', $quiz);
