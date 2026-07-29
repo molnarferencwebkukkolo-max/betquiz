@@ -36,6 +36,41 @@ class Question extends Model
         return round(($this->times_correct / $this->times_answered) * 100);
     }
 
+    public function rebalanceDifficultyIfNeeded(): bool
+    {
+        if ($this->times_answered < 100) {
+            return false;
+        }
+
+        $difficultyLevels = ['easy', 'medium', 'hard'];
+        $currentIndex = array_search($this->difficulty, $difficultyLevels, true);
+
+        if ($currentIndex === false) {
+            return false;
+        }
+
+        $newIndex = $currentIndex;
+        $successRate = $this->successRate();
+
+        if ($successRate > 80) {
+            $newIndex = max(0, $currentIndex - 1);
+        } elseif ($successRate < 20) {
+            $newIndex = min(count($difficultyLevels) - 1, $currentIndex + 1);
+        }
+
+        if ($newIndex === $currentIndex) {
+            return false;
+        }
+
+        $this->forceFill([
+            'difficulty' => $difficultyLevels[$newIndex],
+            'times_answered' => 0,
+            'times_correct' => 0,
+        ])->save();
+
+        return true;
+    }
+
     protected $casts = [
         'question_text' => 'array',
     ];

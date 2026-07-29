@@ -7,7 +7,32 @@
 - Kiemelten figyelj a kommentelésre a kódban.
 - Mindig vizsgáld meg, hogy egy eljárás még mihez kapcsolódik, hogy ne romoljon el a működő rész.
 
+- When the user asks to update `AGENTS.md` at the end of the day, always review and confirm what is done, what is not done, what new items were added, and update the `Next Development Priorities` section accordingly.
+
+## Next Development Priorities
+
+- Fix the issue where the app logs the user out or does not allow login.
+- Clean up admin question and quiz management views with table-based views and bulk editing.
+- Extend user accounts with questionnaires/surveys that can award points.
+- Add content/article sections connected to quizzes.
+
 ## Work Log
+
+### 2026-07-29
+
+- Started the local dev environment with separate `php artisan serve` and `npm run dev` processes.
+- Made the guest homepage use the dashboard experience without personal points/user data/admin-only areas.
+- Added a guest auth prompt popup on quiz play buttons instead of sending guests directly to login.
+- Fixed the quiz catalog filters: `category_id=all`, text search, sort order, and query-string pagination now work together.
+- Added SEO-friendly quiz slugs generated from quiz titles and switched quiz URLs to use slugs while keeping numeric route binding fallback.
+- Added editable admin-only quiz SEO fields: `seo_title` and `seo_description`; defaults come from title and the first 160 description characters.
+- Added quiz tags with `tags` and `quiz_tag`, admin editing UI, existing-tag suggestions, and tag display on quiz cards/catalog.
+- Added quiz aggregate answer stats from question totals: total answers and correct answers.
+- Fixed quiz cover/header image persistence by adding `quizzes.cover_image`, storing uploaded files on the public disk, and rendering them on cards.
+- Improved quiz catalog free-text search priority: title matches first, tag matches second, description matches last only when the search term is longer than 5 characters.
+- Added an elegant clear-filters control to the quiz catalog when filters or non-default sorting are active.
+- Added `Question::rebalanceDifficultyIfNeeded()` to adjust difficulty after at least 100 answers: success rate above 80 moves one level easier, below 20 moves one level harder, and resets current answer stats after a real level change.
+- Hooked question difficulty rebalancing into both active answer-processing paths and added focused feature tests for threshold and boundary behavior.
 
 ### 2026-07-28
 

@@ -18,9 +18,7 @@ use App\Http\Controllers\UserController;
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', [QuizController::class, 'dashboard']);
 
 Route::middleware(['auth', 'verified'])->group(function () {
 

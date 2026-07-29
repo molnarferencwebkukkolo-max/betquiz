@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Quiz;
 use App\Models\Category;
+use App\Models\Tag;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class QuizManagementController extends Controller
 {
@@ -18,15 +21,19 @@ class QuizManagementController extends Controller
 
         if ($user->isUseradmin() || $user->isHostadmin()) {
             // Adminisztrátornak az összes kvíz kell
-            $quizzes = Quiz::with(['creator', 'category'])
+            $quizzes = Quiz::with(['creator', 'category', 'tags'])
                 ->withCount('questions')
+                ->withSum('questions as total_answers', 'times_answered')
+                ->withSum('questions as total_correct', 'times_correct')
                 ->latest()
                 ->paginate(15);
         } else {
             // Sima felhasználónak csak a saját kvízei kellenek
             $quizzes = Quiz::where('creator_id', $user->id)
-                ->with('category')
+                ->with(['category', 'tags'])
                 ->withCount('questions')
+                ->withSum('questions as total_answers', 'times_answered')
+                ->withSum('questions as total_correct', 'times_correct')
                 ->latest()
                 ->paginate(15);
         }
@@ -58,33 +65,36 @@ class QuizManagementController extends Controller
         $quiz = Quiz::create([
             'title' => $validated['title'],
             'description' => $validated['description'],
+            'seo_title' => $validated['title'],
+            'seo_description' => Str::limit(strip_tags((string) $validated['description']), 160, ''),
             'category_id' => $validated['category_id'],
             'creator_id' => auth()->id(),
             'status' => 'pending', // Alapértelmezetten adminisztrátori bírálatra vár!
         ]);
 
-        return redirect()->route('my-quizzes.show', $quiz->id)
+        return redirect()->route('my-quizzes.show', $quiz)
             ->with('success', 'Kvíz koncepció sikeresen benyújtva! Adminisztrátori jóváhagyás után kezdheted meg a további kérdések feltöltését.');
     }
 
     /**
      * Egy konkrét kvíz részletei (CSV feltöltés, kérdések listája, Admin bírálati panel)
      */
-    public function show(Quiz $myQuiz) // <-- $quiz helyett $myQuiz!
+    public function show(Quiz $quiz)
     {
         $user = Auth::user();
 
         // Ellenőrizzük a jogosultságot
-        if (!$user->isUseradmin() && !$user->isHostadmin() && $myQuiz->creator_id !== $user->id) {
+        if (!$user->isUseradmin() && !$user->isHostadmin() && $quiz->creator_id !== $user->id) {
             abort(403, 'Nincs jogosultságod ehhez a kvízhez!');
         }
 
         // Betöltjük a Kvízhez tartozó relációkat
-        $myQuiz->load(['category', 'creator', 'questions.options']);
+        $quiz->load(['category', 'creator', 'questions.options', 'tags']);
+        $quiz->loadSum('questions as total_answers', 'times_answered');
+        $quiz->loadSum('questions as total_correct', 'times_correct');
 
-        // 'quiz' néven adjuk át a $myQuiz-t a Blade sablonnak!
         return view('creator.show', [
-            'quiz' => $myQuiz,
+            'quiz' => $quiz,
             'user' => $user
         ]);
     }
@@ -101,8 +111,10 @@ class QuizManagementController extends Controller
         }
 
         $categories = Category::all();
+        $allTags = Tag::query()->orderBy('name')->pluck('name');
+        $quiz->load('tags');
 
-        return view('creator.edit', compact('quiz', 'categories'));
+        return view('creator.edit', compact('quiz', 'categories', 'allTags'));
     }
 
     /**
@@ -120,33 +132,90 @@ class QuizManagementController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'category_id' => 'required|exists:categories,id',
+            'seo_title' => 'nullable|string|max:255',
+            'seo_description' => 'nullable|string|max:160',
+            'tags' => 'nullable|string|max:1000',
+            'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
         ]);
 
-        $quiz->update($validated);
+        $previousDefaultSeoTitle = $quiz->title;
+        $previousDefaultSeoDescription = Str::limit(strip_tags((string) $quiz->description), 160, '');
 
-        return redirect()->route('my-my-quizzes.show', $quiz->id)
+        $quizData = [
+            'title' => $validated['title'],
+            'description' => $validated['description'],
+            'category_id' => $validated['category_id'],
+        ];
+
+        if ($user->isUseradmin() || $user->isHostadmin()) {
+            $quizData['seo_title'] = $validated['seo_title'] ?: $validated['title'];
+            $quizData['seo_description'] = $validated['seo_description']
+                ?: Str::limit(strip_tags((string) $validated['description']), 160, '');
+        } else {
+            if (!$quiz->seo_title || $quiz->seo_title === $previousDefaultSeoTitle) {
+                $quizData['seo_title'] = $validated['title'];
+            }
+
+            if (!$quiz->seo_description || $quiz->seo_description === $previousDefaultSeoDescription) {
+                $quizData['seo_description'] = Str::limit(strip_tags((string) $validated['description']), 160, '');
+            }
+        }
+
+        if ($request->hasFile('cover_image')) {
+            if ($quiz->cover_image) {
+                Storage::disk('public')->delete($quiz->cover_image);
+            }
+
+            $quizData['cover_image'] = $request->file('cover_image')->store('quiz_covers', 'public');
+        }
+
+        $quiz->update($quizData);
+
+        if ($user->isUseradmin() || $user->isHostadmin()) {
+            $this->syncTags($quiz, $validated['tags'] ?? '');
+        }
+
+        return redirect()->route('my-quizzes.show', $quiz)
             ->with('success', 'Kvíz sikeresen frissítve!');
     }
 
     /**
      * Kvíz törlése
      */
-    public function destroy(Quiz $myQuiz)
+    public function destroy(Quiz $quiz)
     {
         $user = Auth::user();
 
         // 🔒 Jogosultság ellenőrzése
-        if (!$user->isUseradmin() && !$user->isHostadmin() && $myQuiz->creator_id !== $user->id) {
+        if (!$user->isUseradmin() && !$user->isHostadmin() && $quiz->creator_id !== $user->id) {
             abort(403, 'Nincs jogosultságod törölni ezt a kvízt!');
         }
 
         // 💣 Kapcsolódó kérdések törlése (ha nincs cascade törlés beállítva a DB-ben)
-        $myQuiz->questions()->delete();
+        $quiz->questions()->delete();
 
         // 💣 Kvíz törlése
-        $myQuiz->delete();
+        $quiz->delete();
 
         return redirect()->route('my-quizzes.index')->with('success', 'A kvíz sikeresen törölve lett!');
+    }
+
+    /**
+     * Admin altal megadott tag lista letrehozasa es osszekapcsolasa a kvizzel.
+     */
+    private function syncTags(Quiz $quiz, string $tagList): void
+    {
+        $tagNames = collect(preg_split('/[,;]/', $tagList))
+            ->map(fn($tag) => trim($tag))
+            ->filter()
+            ->unique(fn($tag) => Str::lower($tag))
+            ->values();
+
+        $tagIds = $tagNames
+            ->map(fn($name) => Tag::firstOrCreate(['name' => $name])->id)
+            ->all();
+
+        $quiz->tags()->sync($tagIds);
     }
 
     /**

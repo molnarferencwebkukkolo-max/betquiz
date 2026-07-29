@@ -40,6 +40,9 @@
         $percent = min(100, round(($qCount / 100) * 100));
         $isPublished = ($quiz->status === 'approved' || $quiz->status === 'published');
         $canPublish = ($qCount >= 100);
+        $totalAnswers = $quiz->totalAnswersCount();
+        $correctAnswers = $quiz->correctAnswersCount();
+        $successRate = $totalAnswers > 0 ? round(($correctAnswers / $totalAnswers) * 100) : 0;
     @endphp
 
         <!-- Kvíz Fejléc Kártya -->
@@ -68,6 +71,13 @@
                     @endif
                 </div>
                 <h1 class="text-3xl font-extrabold text-gray-800">{{ $quiz->title }}</h1>
+                @if($quiz->tags->isNotEmpty())
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        @foreach($quiz->tags as $tag)
+                            <span class="text-xs font-extrabold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700">{{ $tag->name }}</span>
+                        @endforeach
+                    </div>
+                @endif
                 <p class="text-gray-500 mt-1">{{ $quiz->description ?? 'Nincs megadva leírás.' }}</p>
             </div>
 
@@ -75,12 +85,12 @@
             <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
 
                 <!-- ✏️ Kvíz Szerkesztése Gomb -->
-                <a href="{{ route('my-quizzes.edit', ['my_quiz' => $quiz->id]) }}" class="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold rounded-2xl transition flex items-center gap-1 text-sm">
+                <a href="{{ route('my-quizzes.edit', $quiz) }}" class="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold rounded-2xl transition flex items-center gap-1 text-sm">
                     ✏️ Szerkesztés
                 </a>
 
                 <!-- 🚀 Publikálás / Visszavonás Gomb -->
-                <form action="{{ route('my-quizzes.update', $quiz->id) }}" method="POST">
+                <form action="{{ route('my-quizzes.update', $quiz) }}" method="POST">
                     @csrf
                     @if($isPublished)
                         <button type="submit" class="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white font-extrabold rounded-2xl shadow transition flex items-center gap-2 text-sm">
@@ -114,6 +124,20 @@
 
         <!-- Haladási sáv (Progress Bar) -->
         <div class="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-6">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                <div class="bg-white rounded-2xl border border-gray-100 p-4">
+                    <p class="text-xs font-extrabold text-gray-400 uppercase mb-1">Összes válasz</p>
+                    <p class="text-2xl font-extrabold text-gray-800">{{ number_format($totalAnswers, 0, ',', ' ') }}</p>
+                </div>
+                <div class="bg-white rounded-2xl border border-gray-100 p-4">
+                    <p class="text-xs font-extrabold text-gray-400 uppercase mb-1">Helyes válasz</p>
+                    <p class="text-2xl font-extrabold text-green-600">{{ number_format($correctAnswers, 0, ',', ' ') }}</p>
+                </div>
+                <div class="bg-white rounded-2xl border border-gray-100 p-4">
+                    <p class="text-xs font-extrabold text-gray-400 uppercase mb-1">Találati arány</p>
+                    <p class="text-2xl font-extrabold text-indigo-600">{{ $successRate }}%</p>
+                </div>
+            </div>
             <div class="flex justify-between text-xs font-extrabold text-gray-600 mb-1">
                 <span>Kérdések feltöltöttsége (Cél: 100 db a publikáláshoz):</span>
                 <span class="{{ $canPublish ? 'text-green-600 font-bold' : '' }}">{{ $qCount }} / 100 DB ({{ $percent }}%)</span>
@@ -138,7 +162,7 @@
                 <code>Kérdés; Helyes válasz; Hibás1; Hibás2; Hibás3; Nehézség (easy/medium/hard)</code>
             </p>
 
-            <form action="{{ route('my-quizzes.questions.import', $quiz->id) }}" method="POST" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-3 items-center">
+            <form action="{{ route('my-quizzes.questions.import', $quiz) }}" method="POST" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-3 items-center">
                 @csrf
                 <input type="file" name="csv_file" required accept=".csv,.txt" class="w-full sm:w-auto text-xs bg-white p-2.5 rounded-xl border border-indigo-200 font-medium text-gray-600">
                 <button type="submit" class="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow transition">

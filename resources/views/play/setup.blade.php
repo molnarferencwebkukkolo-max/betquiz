@@ -1,5 +1,8 @@
 @extends('layouts.game')
 
+@section('title', $quiz->effective_seo_title . ' - BetQuiz')
+@section('meta_description', $quiz->effective_seo_description)
+
 @section('content')
     <div class="py-12" x-data="{
         mode: 'normal',
@@ -68,7 +71,7 @@
                     <div class="flex items-center gap-3">
                         {{-- 1. KEDVENC GOMB --}}
                         @if(!$isDisliked)
-                            <form action="{{ route('quiz.toggle-favorite', $quiz->id) }}" method="POST">
+                            <form action="{{ route('quiz.toggle-favorite', $quiz) }}" method="POST">
                                 @csrf
                                 <button type="submit"
                                         class="px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 shadow-sm {{ $isFavorite ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100' }}">
@@ -79,7 +82,7 @@
 
                         {{-- 2. DISLIKE GOMB --}}
                         @if(!$isFavorite)
-                            <form action="{{ route('quiz.toggle-dislike', $quiz->id) }}" method="POST">
+                            <form action="{{ route('quiz.toggle-dislike', $quiz) }}" method="POST">
                                 @csrf
                                 <button type="submit"
                                         class="px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 shadow-sm {{ $isDisliked ? 'bg-gray-800 text-white hover:bg-gray-900' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-100' }}">
@@ -91,7 +94,7 @@
 
                     {{-- 3. KVÍZ FELÉLESZTÉSE GOMB --}}
                     @if($answeredCount > 0)
-                        <form action="{{ route('quiz.reset-answers', $quiz->id) }}" method="POST" onsubmit="return confirm('Biztosan feléleszted a kvízt? Ez {{ $resetCost }} PT-be kerül ({{ $resetCostPerQuestion }} PT / kérdés).')">
+                        <form action="{{ route('quiz.reset-answers', $quiz) }}" method="POST" onsubmit="return confirm('Biztosan feléleszted a kvízt? Ez {{ $resetCost }} PT-be kerül ({{ $resetCostPerQuestion }} PT / kérdés).')">
                             @csrf
                             <button type="submit"
                                     class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-xl transition flex items-center gap-2 shadow-sm">

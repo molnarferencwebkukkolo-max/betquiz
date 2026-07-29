@@ -64,11 +64,18 @@
                     </div>
 
                     <h2 class="text-xl font-bold text-gray-800 mb-2">
-                        <a href="{{ route('my-quizzes.show', $quiz->id) }}" class="hover:text-indigo-600 transition">
+                        <a href="{{ route('my-quizzes.show', $quiz) }}" class="hover:text-indigo-600 transition">
                             {{ $quiz->title }}
                         </a>
                     </h2>
                     <p class="text-sm text-gray-500 line-clamp-2 mb-4">{{ $quiz->description ?? 'Nincs leírás.' }}</p>
+                    @if($quiz->tags->isNotEmpty())
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            @foreach($quiz->tags->take(5) as $tag)
+                                <span class="text-xs font-extrabold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700">{{ $tag->name }}</span>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
 
                 <div>
@@ -77,6 +84,9 @@
                         <div class="flex justify-between text-xs font-extrabold text-gray-600 mb-1">
                             <span>Kérdések állása:</span>
                             <span>{{ $qCount }} / 100 DB ({{ $percent }}%)</span>
+                        </div>
+                        <div class="text-xs font-bold text-gray-500 mb-2">
+                            {{ number_format($quiz->totalAnswersCount(), 0, ',', ' ') }} válasz, ebből {{ number_format($quiz->correctAnswersCount(), 0, ',', ' ') }} helyes
                         </div>
                         <div class="w-full bg-gray-100 rounded-full h-3 border overflow-hidden">
                             <div class="bg-indigo-600 h-3 rounded-full transition-all duration-500" style="width: {{ $percent }}%;"></div>
@@ -90,7 +100,7 @@
                             </span>
 
                         <!-- 🎯 ITT A LÉNYEG: Direkt kattintható gomb a részletezéshez -->
-                        <a href="{{ route('my-quizzes.show', $quiz->id) }}" class="px-3 py-1.5 bg-indigo-600 text-white font-bold rounded-xl shadow hover:bg-indigo-700 transition flex items-center gap-1">
+                        <a href="{{ route('my-quizzes.show', $quiz) }}" class="px-3 py-1.5 bg-indigo-600 text-white font-bold rounded-xl shadow hover:bg-indigo-700 transition flex items-center gap-1">
                             👁️ Megtekintés & Statisztika →
                         </a>
                     </div>

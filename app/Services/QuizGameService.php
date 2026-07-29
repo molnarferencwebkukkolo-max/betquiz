@@ -75,6 +75,7 @@ class QuizGameService
         if ($isCorrect) {
             $question->increment('times_correct');
         }
+        $question->refresh()->rebalanceDifficultyIfNeeded();
 
         // Készítői pont jóváírása (ha még nem válaszolt erre a kérdésre)
         if (!in_array($question->id, $quizSession['answered_question_ids'])) {

@@ -1,76 +1,73 @@
 <header class="nav-header">
     <div class="nav-container">
         <div class="nav-wrapper">
-
-            <!-- Bal oldal: Logo + Navigációs Linkek -->
             <div style="display: flex; align-items: center; gap: 2rem;">
-                <!-- Logo -->
-                <a href="{{ route('dashboard') }}" class="nav-brand">
+                <a href="{{ auth()->check() ? route('dashboard') : url('/') }}" class="nav-brand">
                     <span>BetQuiz</span>
                 </a>
 
-                <!-- Főmenü linkek -->
                 <nav style="display: flex; align-items: center; gap: 0.5rem;">
-                    <!-- Dashboard -->
-                    <a href="{{ route('dashboard') }}"
-                       class="nav-link-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                    <a href="{{ auth()->check() ? route('dashboard') : url('/') }}"
+                       class="nav-link-item {{ request()->routeIs('dashboard') || request()->is('/') ? 'active' : '' }}">
                         Dashboard
                     </a>
 
-                    <!-- Játék (Katalógus) -->
-                    <a href="{{ route('quizzes.index') }}"
-                       class="nav-link-item {{ request()->routeIs('quizzes.*') || request()->routeIs('quiz.*') ? 'active' : '' }}">
-                        🎮 Játék
-                    </a>
+                    @auth
+                        <a href="{{ route('quizzes.index') }}"
+                           class="nav-link-item {{ request()->routeIs('quizzes.*') || request()->routeIs('quiz.*') ? 'active' : '' }}">
+                            Játék
+                        </a>
+                    @else
+                        <button type="button" class="nav-link-item nav-link-button" onclick="openGuestAuthPrompt()">
+                            Játék
+                        </button>
+                    @endauth
 
-                    <!-- Kvízeim (Alkotói felület) -->
-                    <a href="{{ route('my-quizzes.index') }}"
-                       class="nav-link-item {{ request()->routeIs('my-quizzes.*') ? 'active' : '' }}">
-                        📝 Kvízeim
-                    </a>
+                    @auth
+                        <a href="{{ route('my-quizzes.index') }}"
+                           class="nav-link-item {{ request()->routeIs('my-quizzes.*') ? 'active' : '' }}">
+                            Kvízeim
+                        </a>
 
-                    <!-- Szerezz pontot -->
-                    <a href="{{ route('pages.points') }}"
-                       class="nav-btn-points">
-                        ⭐ Szerezz pontot
-                    </a>
+                        <a href="{{ route('pages.points') }}" class="nav-btn-points">
+                            Szerezz pontot
+                        </a>
+                    @endauth
 
-                    <!-- ADMIN / HOSTADMIN Menüpontok -->
                     @if(auth()->check() && (auth()->user()->isUseradmin() || auth()->user()->isHostadmin()))
                         <a href="{{ route('questions.index') }}"
                            class="nav-link-item nav-link-purple {{ request()->routeIs('questions.*') ? 'active' : '' }}">
-                            📚 Kérdésbank
+                            Kérdésbank
                         </a>
 
                         <span class="badge-no-quiz" style="cursor: not-allowed; opacity: 0.7;" title="Hamarosan érkezik">
-                            👥 Felhasználók
+                            Felhasználók
                         </span>
                     @endif
                 </nav>
             </div>
 
-            <!-- Jobb oldal: Egyenleg + Felhasználó + Kijelentkezés -->
             <div style="display: flex; align-items: center; gap: 1rem;">
-                <!-- Zseton / Pontszám kijelző -->
-                <div class="nav-badge-tokens">
-                    <span>💰</span>
-                    <span>{{ number_format(auth()->user()->points ?? 0) }} PT</span>
-                </div>
+                @auth
+                    <div class="nav-badge-tokens">
+                        <span>{{ number_format(auth()->user()->points ?? 0) }} PT</span>
+                    </div>
 
-                <!-- Profil link -->
-                <a href="{{ route('profile.show') }}" class="nav-link-item">
-                    👤 {{ Auth::user()->name }}
-                </a>
+                    <a href="{{ route('profile.show') }}" class="nav-link-item">
+                        {{ Auth::user()->name }}
+                    </a>
 
-                <!-- Kijelentkezés gomb -->
-                <form method="POST" action="{{ route('logout') }}" style="margin: 0;">
-                    @csrf
-                    <button type="submit" class="nav-btn-logout">
-                        🚪 Kijelentkezés
-                    </button>
-                </form>
+                    <form method="POST" action="{{ route('logout') }}" style="margin: 0;">
+                        @csrf
+                        <button type="submit" class="nav-btn-logout">
+                            Kijelentkezés
+                        </button>
+                    </form>
+                @else
+                    <a href="{{ route('login') }}" class="nav-link-item">Bejelentkezés</a>
+                    <a href="{{ route('register') }}" class="btn-primary-purple" style="padding: 0.625rem 1rem; font-size: 0.875rem; text-decoration: none;">Regisztráció</a>
+                @endauth
             </div>
-
         </div>
     </div>
 </header>

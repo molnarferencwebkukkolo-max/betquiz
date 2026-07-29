@@ -23,11 +23,11 @@ class QuizController extends Controller
     public function dashboard()
     {
         $user = Auth::user();
-        $userId = $user->id;
+        $userId = $user?->id;
 
         // 🟢 1. ELŐSZÖR LEKÉRJÜK A DISLIKE-OLT KVÍZEKET (Adatbázisból vagy relációból)
         $dislikedQuizIds = [];
-        if (Schema::hasTable('quiz_user_dislikes')) {
+        if ($userId && Schema::hasTable('quiz_user_dislikes')) {
             $dislikedQuizIds = DB::table('quiz_user_dislikes')
                 ->where('user_id', $userId)
                 ->pluck('quiz_id')
@@ -36,11 +36,13 @@ class QuizController extends Controller
 
         // 🟢 2. AZ ALAP LEKÉRDEZÉSBE AZONNAL BEÉPÍTJÜK A SZŰRÉST
         $baseQuery = Quiz::where('status', 'approved')
-            ->where('creator_id', '!=', $userId)
+            ->when($userId, fn($q) => $q->where('creator_id', '!=', $userId))
             ->when(!empty($dislikedQuizIds), fn($q) => $q->whereNotIn('quizzes.id', $dislikedQuizIds)) // 🟢 Automatikusan kizárja a dislike-oltakat az összes dobozból!
             ->has('questions', '>=', 100)
-            ->with(['category', 'creator'])
-            ->withCount('questions');
+            ->with(['category', 'creator', 'tags'])
+            ->withCount('questions')
+            ->withSum('questions as total_answers', 'times_answered')
+            ->withSum('questions as total_correct', 'times_correct');
 
         // ------------------------------------------------------------------
         // AZ EREDETI DOBOZOK LEKÉRDEZÉSE (NEM VÁLTOZOTT SEMMI!)
@@ -55,22 +57,27 @@ class QuizController extends Controller
 
         // Kedvenc kvízek lekérdezése (A kedvenc táblából direktben)
         $favoriteQuizzes = collect();
-        if (Schema::hasTable('quiz_user_favorites')) {
+        if ($userId && Schema::hasTable('quiz_user_favorites')) {
             $favIds = DB::table('quiz_user_favorites')->where('user_id', $userId)->pluck('quiz_id')->toArray();
             if (!empty($favIds)) {
                 $favoriteQuizzes = Quiz::whereIn('id', $favIds)
                     ->where('status', 'approved')
-                    ->with(['category', 'creator'])
+                    ->with(['category', 'creator', 'tags'])
                     ->withCount('questions')
+                    ->withSum('questions as total_answers', 'times_answered')
+                    ->withSum('questions as total_correct', 'times_correct')
                     ->get();
             }
-        } elseif (method_exists($user, 'favorites')) {
-            $favoriteQuizzes = $user->favorites()->with(['category', 'creator'])->withCount('questions')->get();
+        } elseif ($user && method_exists($user, 'favorites')) {
+            $favoriteQuizzes = $user->favorites()
+                ->with(['category', 'creator', 'tags'])
+                ->withCount('questions')
+                ->withSum('questions as total_answers', 'times_answered')
+                ->withSum('questions as total_correct', 'times_correct')
+                ->get();
         }
 
         $hardestQuizzes = (clone $baseQuery)
-            ->withSum('questions as total_answers', 'times_answered')
-            ->withSum('questions as total_correct', 'times_correct')
             ->get()
             ->filter(fn($quiz) => $quiz->total_answers > 0)
             ->sortByDesc(function ($quiz) {
@@ -82,9 +89,9 @@ class QuizController extends Controller
             ->values();
 
         $playedQuizIds = [];
-        if (Schema::hasTable('quiz_sessions')) {
+        if ($userId && Schema::hasTable('quiz_sessions')) {
             $playedQuizIds = DB::table('quiz_sessions')->where('user_id', $userId)->pluck('quiz_id')->toArray();
-        } elseif (Schema::hasTable('user_answers')) {
+        } elseif ($userId && Schema::hasTable('user_answers')) {
             $playedQuizIds = DB::table('user_answers')->where('user_id', $userId)->pluck('quiz_id')->toArray();
         }
 
@@ -102,12 +109,13 @@ class QuizController extends Controller
             ->get();
 
         $popularQuizzes = (clone $baseQuery)
-            ->withSum('questions as total_answers', 'times_answered')
             ->orderByDesc('total_answers')
             ->take(10)
             ->get();
 
-        $myQuizzes = Quiz::where('creator_id', $userId)->with('category')->latest()->get();
+        $myQuizzes = $userId
+            ? Quiz::where('creator_id', $userId)->with('category')->latest()->get()
+            : collect();
 
         return view('dashboard', compact(
             'user',
@@ -137,14 +145,59 @@ class QuizController extends Controller
         })
             ->where('creator_id', '!=', $user->id)
             ->has('questions', '>=', 100)
-            ->with(['category', 'creator'])
-            ->withCount('questions');
+            ->with(['category', 'creator', 'tags'])
+            ->withCount('questions')
+            ->withSum('questions as total_answers', 'times_answered')
+            ->withSum('questions as total_correct', 'times_correct');
 
-        if ($request->filled('category_id')) {
+        if ($request->filled('category_id') && $request->category_id !== 'all') {
             $quizzesQuery->where('category_id', $request->category_id);
         }
 
-        $quizzes = $quizzesQuery->latest()->paginate(12)->withQueryString();
+        if ($request->filled('search')) {
+            $search = trim($request->string('search')->toString());
+
+            if ($search !== '') {
+                $likeSearch = "%{$search}%";
+                $searchDescription = mb_strlen($search) > 5;
+
+                $quizzesQuery->where(function ($q) use ($likeSearch, $searchDescription) {
+                    $q->where('title', 'like', $likeSearch)
+                        ->orWhereHas('tags', fn($tagQuery) => $tagQuery->where('name', 'like', $likeSearch))
+                        ->when($searchDescription, fn($query) => $query->orWhere('description', 'like', $likeSearch));
+                });
+
+                $descriptionRankSql = $searchDescription
+                    ? 'WHEN quizzes.description LIKE ? THEN 3'
+                    : '';
+
+                $rankBindings = $searchDescription
+                    ? [$likeSearch, $likeSearch, $likeSearch]
+                    : [$likeSearch, $likeSearch];
+
+                $quizzesQuery->orderByRaw("
+                    CASE
+                        WHEN quizzes.title LIKE ? THEN 1
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM quiz_tag
+                            INNER JOIN tags ON tags.id = quiz_tag.tag_id
+                            WHERE quiz_tag.quiz_id = quizzes.id
+                              AND tags.name LIKE ?
+                        ) THEN 2
+                        {$descriptionRankSql}
+                        ELSE 4
+                    END
+                ", $rankBindings);
+            }
+        }
+
+        match ($request->input('sort', 'latest')) {
+            'oldest' => $quizzesQuery->oldest(),
+            default => $quizzesQuery->latest(),
+        };
+
+        $quizzes = $quizzesQuery->paginate(12)->withQueryString();
 
         return view('play.catalog', compact('quizzes', 'categories', 'user'));
     }
@@ -154,6 +207,9 @@ class QuizController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
         $quiz->load(['category', 'creator']);
+        $quiz->load('tags');
+        $quiz->loadSum('questions as total_answers', 'times_answered');
+        $quiz->loadSum('questions as total_correct', 'times_correct');
 
         $quizQuestionIds = $quiz->questions()->pluck('questions.id')->toArray();
         $totalQuestionsCount = count($quizQuestionIds);
@@ -248,7 +304,7 @@ class QuizController extends Controller
             $message = 'Kvíz hozzáadva a kedvencekhez! ❤️';
         }
 
-        return redirect()->route('quiz.setup', $quizId)->with('success', $message);
+        return redirect()->route('quiz.setup', $quiz)->with('success', $message);
     }
 
     /**
@@ -290,7 +346,7 @@ class QuizController extends Controller
             $message = 'Kvíz elrejtve a műszerfalról.';
         }
 
-        return redirect()->route('quiz.setup', $quizId)->with('success', $message);
+        return redirect()->route('quiz.setup', $quiz)->with('success', $message);
     }
 
     /**
@@ -581,16 +637,25 @@ class QuizController extends Controller
         $options = method_exists($question, 'options') ? $question->options : $question->answers;
         $correctOption = $options->where('is_correct', true)->first();
         $isCorrect = $selectedOptionId && $correctOption && ((int)$selectedOptionId === (int)$correctOption->id);
+        $answerDifficulty = strtolower($question->difficulty ?? 'medium');
         $wasAlreadyAnsweredCorrectly = DB::table('user_answers')
             ->where('user_id', $user->id)
             ->where('question_id', (int)$questionId)
             ->where('is_correct', 1)
             ->exists();
 
+        if ($selectedOptionId) {
+            $question->increment('times_answered');
+            if ($isCorrect) {
+                $question->increment('times_correct');
+            }
+            $question->refresh()->rebalanceDifficultyIfNeeded();
+        }
+
         if ($isCorrect) {
             // 🟢 HELYES VÁLASZ LOGIKA
             $diffMultipliers = ['easy' => 1.2, 'medium' => 1.5, 'hard' => 2.0];
-            $diffKey = strtolower($question->difficulty ?? 'medium');
+            $diffKey = $answerDifficulty;
             $diffMult = $diffMultipliers[$diffKey] ?? 1.5;
             $timeMult = (float)($game['time_modifier'] ?? 1.0);
             $totalMult = $diffMult * $timeMult;

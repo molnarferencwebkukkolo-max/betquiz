@@ -31,7 +31,7 @@ class QuizPlayController extends Controller
 
             session(['quiz_session' => $sessionData]);
 
-            return redirect()->route('quiz.play', $quiz->id);
+            return redirect()->route('quiz.play', $quiz);
 
         } catch (\Exception $e) {
             return back()->withErrors(['bet_amount' => $e->getMessage()]);
@@ -42,7 +42,7 @@ class QuizPlayController extends Controller
     {
         $session = session('quiz_session');
         if (!$session || $session['quiz_id'] !== $quiz->id) {
-            return redirect()->route('quiz.setup', $quiz->id)->with('error', 'Először állítsd be a tétet!');
+            return redirect()->route('quiz.setup', $quiz)->with('error', 'Először állítsd be a tétet!');
         }
 
         $questions = Question::with(['options', 'category'])
