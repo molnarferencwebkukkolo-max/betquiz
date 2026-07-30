@@ -8,9 +8,10 @@ use App\Models\Option;
 use App\Models\Quiz;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-
-
+use Illuminate\Support\Facades\Validator;
 
 class QuestionController extends Controller
 {
@@ -21,10 +22,10 @@ class QuestionController extends Controller
     {
         $user = Auth::user();
 
-        $query = Question::with(['quiz', 'category', 'options', 'creator'])->latest();
+        $query = Question::with(['quiz.creator', 'category', 'options'])->latest();
 
         if (!$user->isUseradmin()) {
-            $query->where('creator_id', $user->id);
+            $query->whereHas('quiz', fn ($quizQuery) => $quizQuery->where('creator_id', $user->id));
         }
 
         $questions = $query->paginate(15);
@@ -49,9 +50,7 @@ class QuestionController extends Controller
 
     public function storeForQuiz(Request $request, Quiz $quiz)
     {
-        if (auth()->user()->role !== 'admin' && $quiz->creator_id !== auth()->id()) {
-            abort(403, 'Nincs jogosultságod ehhez a kvízhez kérdést hozzáadni.');
-        }
+        $this->authorizeQuizAccess($quiz);
 
         // 1. Validáció kibővítése a képfájlra (PNG, JPG, WEBP, max 2MB)
         $request->validate([
@@ -74,7 +73,9 @@ class QuestionController extends Controller
                 // 3. Kérdés mentése az kép elérési útjával
                 $question = Question::create([
                     'quiz_id' => $quiz->id,
-                    'question_text' => $request->question_text,
+                    // A kategória legacy mező, mindig a kvízből öröklődik.
+                    'category_id' => $quiz->category_id,
+                    'question_text' => ['hu' => $request->question_text],
                     'image_path' => $imagePath,
                 ]);
 
@@ -102,9 +103,7 @@ class QuestionController extends Controller
     public function importForQuiz(Request $request, Quiz $quiz)
     {
         // 1. Jogosultság ellenőrzése
-        if (auth()->user()->role !== 'admin' && $quiz->creator_id !== auth()->id()) {
-            abort(403, 'Nincs jogosultságod ehhez a kvízhez kérdéseket importálni.');
-        }
+        $this->authorizeQuizAccess($quiz);
 
         // 2. SZIGORÚ FÁJL- ÉS MIME-TÍPUS VALIDÁCIÓ (csv, txt, max 2MB)
         $request->validate([
@@ -233,7 +232,9 @@ class QuestionController extends Controller
                 foreach ($rowsToInsert as $item) {
                     $question = Question::create([
                         'quiz_id' => $quiz->id,
-                        'question_text' => $item['question_text'],
+                        // A kategória legacy mező, mindig a kvízből öröklődik.
+                        'category_id' => $quiz->category_id,
+                        'question_text' => ['hu' => $item['question_text']],
                     ]);
 
                     foreach ($item['options'] as $opt) {
@@ -262,7 +263,7 @@ class QuestionController extends Controller
      */
     public function edit(Question $question)
     {
-        $this->authorizeAccess($question);
+        $this->authorizeQuestionAccess($question);
 
         $user = Auth::user();
 
@@ -271,7 +272,6 @@ class QuestionController extends Controller
             $quizzesQuery->where('creator_id', $user->id);
         }
         $quizzes = $quizzesQuery->get();
-
         $question->load(['options', 'quiz']);
 
         return view('questions.edit', compact('question', 'quizzes'));
@@ -280,37 +280,86 @@ class QuestionController extends Controller
 
     public function update(Request $request, Question $question)
     {
-        $user = Auth::user();
+        $this->authorizeQuestionAccess($question);
 
-        // 1. Eredeti kérdés kezelési jogosultságának ellenőrzése
-        if ($user->role !== 'admin' && $question->quiz->creator_id !== $user->id) {
-            abort(403, 'Nincs jogosultságod a kérdés módosításához.');
-        }
-
-        $request->validate([
+        $validated = $request->validate([
             'quiz_id' => 'required|exists:quizzes,id',
-            'question_text' => 'required|string',
-            // egyéb validációs szabályok...
+            'difficulty' => 'required|in:easy,medium,hard',
+            'question_text' => 'required|string|max:1000',
+            'question_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'correct_option' => 'required|integer|min:0',
+            'options' => 'required|array|min:2|max:4',
+            'options.*.text' => 'nullable|string|max:255',
+            'options.*.image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
         ]);
 
-        // 2. Célkvíz lekérése és CÉL-JOGOSULTSÁG ellenőrzése
-        $targetQuiz = Quiz::findOrFail($request->quiz_id);
+        $question->load(['options', 'quiz']);
+        $user = Auth::user();
+        $targetQuiz = Quiz::findOrFail($validated['quiz_id']);
 
-        // KIZÁRÓLAG ADMIN/HOSTADMIN mozgathatja idegen kvízbe!
-        // Ha nem admin, a célkvíznek is a felhasználó tulajdonában KELLETT lennie!
-        if ($user->role !== 'admin' && $targetQuiz->creator_id !== $user->id) {
-            return back()->withErrors([
-                'quiz_id' => 'Nincs jogosultságod kérdést áthelyezni más felhasználó kvízébe!'
+        // Kvízt csak admin válthat; normál felhasználó a saját kérdését sem
+        // mozgathatja át másik kvízbe ezen a szerkesztőfelületen.
+        if (!$user->isUseradmin() && !$user->isHostadmin() && $targetQuiz->id !== $question->quiz_id) {
+            abort(403, 'Csak adminisztrátor helyezhet át kérdést másik kvízbe.');
+        }
+
+        $correctOptionIndex = (int) $validated['correct_option'];
+
+        if (!array_key_exists($correctOptionIndex, $validated['options'])) {
+            return back()->withInput()->withErrors([
+                'correct_option' => 'A kiválasztott helyes válasz nem létezik.',
             ]);
         }
 
-        // Ha a jogosultság rendben: áthelyezés és frissítés végrehajtása
-        $question->update([
-            'quiz_id' => $targetQuiz::class ? $targetQuiz->id : $request->quiz_id,
-            'question_text' => $request->question_text,
-        ]);
+        DB::transaction(function () use ($request, $question, $targetQuiz, $validated, $correctOptionIndex) {
+            $questionData = [
+                'quiz_id' => $targetQuiz->id,
+                // A legacy adatbázisoszlop még kötelező, ezért a kérdés mindig
+                // a kvíz kategóriáját örökli, önálló kategóriát nem kezelünk.
+                'category_id' => $targetQuiz->category_id,
+                'difficulty' => $validated['difficulty'],
+                'question_text' => ['hu' => $validated['question_text']],
+            ];
 
-        return redirect()->route('questions.index')->with('success', 'Kérdés sikeresen frissítve/áthelyezve!');
+            if ($request->hasFile('question_image')) {
+                if ($question->image_path) {
+                    Storage::disk('public')->delete($question->image_path);
+                }
+
+                $questionData['image_path'] = $request->file('question_image')->store('questions', 'public');
+            }
+
+            $question->update($questionData);
+
+            foreach ($validated['options'] as $index => $optionData) {
+                $option = $question->options->values()->get((int) $index);
+
+                if (!$option) {
+                    continue;
+                }
+
+                $updateData = [
+                    'option_text' => ['hu' => $optionData['text'] ?? ''],
+                    'is_correct' => (int) $index === $correctOptionIndex,
+                ];
+
+                if ($request->hasFile("options.{$index}.image")) {
+                    if ($option->image_path) {
+                        Storage::disk('public')->delete($option->image_path);
+                    }
+
+                    $updateData['image_path'] = $request
+                        ->file("options.{$index}.image")
+                        ->store('options', 'public');
+                }
+
+                $option->update($updateData);
+            }
+        });
+
+        return redirect()
+            ->route('my-quizzes.show', $targetQuiz)
+            ->with('success', 'Kérdés sikeresen frissítve!');
     }
 
     /**
@@ -318,13 +367,7 @@ class QuestionController extends Controller
      */
     public function destroy(Question $question)
     {
-        $user = Auth::user();
-        $quiz = $question->quiz;
-
-        // 🔒 Jogosultság ellenőrzése (csak a készítő vagy admin törölheti)
-        if (!$user->isUseradmin() && !$user->isHostadmin() && $quiz->creator_id !== $user->id) {
-            abort(403, 'Nincs jogosultságod törölni ezt a kérdést!');
-        }
+        $this->authorizeQuestionAccess($question);
 
         // 💣 Opciók törlése
         $question->options()->delete();
@@ -333,5 +376,76 @@ class QuestionController extends Controller
         $question->delete();
 
         return back()->with('success', 'A kérdés sikeresen törölve lett!');
+    }
+
+    /**
+     * Több kérdés nehézségének vagy kapcsolódó kvízének módosítása.
+     */
+    public function bulkUpdate(Request $request, Quiz $quiz)
+    {
+        $this->authorizeQuizAccess($quiz);
+        $user = Auth::user();
+
+        $validated = $request->validate([
+            'question_ids' => 'required|array|min:1',
+            'question_ids.*' => 'integer',
+            'bulk_action' => 'required|in:change_difficulty,move_to_quiz',
+            'difficulty' => 'nullable|required_if:bulk_action,change_difficulty|in:easy,medium,hard',
+            'target_quiz_id' => 'nullable|required_if:bulk_action,move_to_quiz|exists:quizzes,id',
+        ]);
+
+        $questionIds = array_values(array_unique(array_map('intval', $validated['question_ids'])));
+        $questionsQuery = Question::query()
+            ->where('quiz_id', $quiz->id)
+            ->whereIn('id', $questionIds);
+
+        if ((clone $questionsQuery)->count() !== count($questionIds)) {
+            abort(422, 'A kijelölt kérdések között másik kvízhez tartozó elem is van.');
+        }
+
+        if ($validated['bulk_action'] === 'change_difficulty') {
+            $updatedCount = $questionsQuery->update([
+                'difficulty' => $validated['difficulty'],
+            ]);
+        } else {
+            if (!$user->isUseradmin() && !$user->isHostadmin()) {
+                abort(403, 'Csak adminisztrátor helyezhet át kérdéseket másik kvízbe.');
+            }
+
+            $targetQuiz = Quiz::findOrFail($validated['target_quiz_id']);
+            $updatedCount = $questionsQuery->update([
+                'quiz_id' => $targetQuiz->id,
+                // A legacy kategória mindig a célkvíz kategóriáját követi.
+                'category_id' => $targetQuiz->category_id,
+            ]);
+        }
+
+        return back()->with('success', "{$updatedCount} kérdés tömeges módosítása elkészült.");
+    }
+
+    /**
+     * Admin minden kvízt kezelhet, normál felhasználó csak a sajátját.
+     */
+    private function authorizeQuizAccess(Quiz $quiz): void
+    {
+        $user = Auth::user();
+
+        if (!$user->isUseradmin() && !$user->isHostadmin() && $quiz->creator_id !== $user->id) {
+            abort(403, 'Nincs jogosultságod ehhez a kvízhez.');
+        }
+    }
+
+    /**
+     * A kérdés jogosultsága a hozzá tartozó kvíz tulajdonosából következik.
+     */
+    private function authorizeQuestionAccess(Question $question): void
+    {
+        $question->loadMissing('quiz');
+
+        if (!$question->quiz) {
+            abort(403, 'A kérdés nem tartozik kezelhető kvízhez.');
+        }
+
+        $this->authorizeQuizAccess($question->quiz);
     }
 }

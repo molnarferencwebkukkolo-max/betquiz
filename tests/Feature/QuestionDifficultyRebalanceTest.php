@@ -115,7 +115,6 @@ class QuestionDifficultyRebalanceTest extends TestCase
         return Question::create(array_merge([
             'quiz_id' => $quiz->id,
             'category_id' => $category->id,
-            'creator_id' => $user->id,
             'difficulty' => 'medium',
             'question_text' => ['hu' => 'Teszt kerdes?'],
             'is_approved' => true,

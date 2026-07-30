@@ -5,40 +5,202 @@ namespace App\Http\Controllers;
 use App\Models\Quiz;
 use App\Models\Category;
 use App\Models\Tag;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class QuizManagementController extends Controller
 {
     /**
      * Kvízek listázása (KVÍZEIM / Saját kvízek + Admin bíráló lista)
      */
-    public function index()
+    public function index(Request $request)
     {
         $user = auth()->user();
+        $isAdmin = $user->isUseradmin() || $user->isHostadmin();
+        $search = trim((string) $request->query('q', ''));
+        $status = (string) $request->query('status', '');
+        $categoryId = $request->integer('category_id');
+        $allowedStatuses = ['pending', 'approved', 'rejected'];
 
-        if ($user->isUseradmin() || $user->isHostadmin()) {
-            // Adminisztrátornak az összes kvíz kell
-            $quizzes = Quiz::with(['creator', 'category', 'tags'])
-                ->withCount('questions')
-                ->withSum('questions as total_answers', 'times_answered')
-                ->withSum('questions as total_correct', 'times_correct')
-                ->latest()
-                ->paginate(15);
-        } else {
-            // Sima felhasználónak csak a saját kvízei kellenek
-            $quizzes = Quiz::where('creator_id', $user->id)
-                ->with(['category', 'tags'])
-                ->withCount('questions')
-                ->withSum('questions as total_answers', 'times_answered')
-                ->withSum('questions as total_correct', 'times_correct')
-                ->latest()
-                ->paginate(15);
+        $quizzesQuery = Quiz::query()
+            ->with(['creator', 'category', 'tags'])
+            ->withCount('questions')
+            ->withSum('questions as total_answers', 'times_answered')
+            ->withSum('questions as total_correct', 'times_correct');
+
+        if (!$isAdmin) {
+            $quizzesQuery->where('creator_id', $user->id);
         }
 
-        return view('creator.index', compact('quizzes'));
+        if ($search !== '') {
+            $quizzesQuery->where(function ($query) use ($search, $isAdmin) {
+                $query->where('title', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhereHas('tags', fn ($tagQuery) => $tagQuery->where('name', 'like', "%{$search}%"));
+
+                if ($isAdmin) {
+                    $query->orWhereHas('creator', function ($creatorQuery) use ($search) {
+                        $creatorQuery->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+                }
+            });
+        }
+
+        if (in_array($status, $allowedStatuses, true)) {
+            $quizzesQuery->where('status', $status);
+        } else {
+            $status = '';
+        }
+
+        if ($categoryId > 0) {
+            $quizzesQuery->where('category_id', $categoryId);
+        }
+
+        if ($isAdmin && in_array($request->query('view'), ['cards', 'table'], true)) {
+            session()->put('quiz_management_view', $request->query('view'));
+        }
+
+        $viewMode = $isAdmin ? session('quiz_management_view', 'cards') : 'cards';
+        $quizzes = $quizzesQuery->latest()->paginate(15)->withQueryString();
+        $categories = Category::query()->orderBy('name')->get();
+        $owners = $isAdmin
+            ? User::query()->orderBy('name')->get(['id', 'name', 'email'])
+            : collect();
+
+        return view('creator.index', compact(
+            'quizzes',
+            'categories',
+            'isAdmin',
+            'viewMode',
+            'search',
+            'status',
+            'categoryId',
+            'owners'
+        ));
+    }
+
+    /**
+     * Admin tömeges kvízműveletek.
+     */
+    public function bulkUpdate(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user->isUseradmin() && !$user->isHostadmin()) {
+            abort(403, 'Csak adminisztrátor módosíthat egyszerre több kvízt.');
+        }
+
+        $validated = $request->validate([
+            'quiz_ids' => 'required|array|min:1',
+            'quiz_ids.*' => 'integer|exists:quizzes,id',
+            'bulk_action' => 'required|in:approve,reject,make_public,make_private,change_owner',
+            'owner_id' => 'nullable|required_if:bulk_action,change_owner|exists:users,id',
+        ]);
+
+        $quizIds = array_values(array_unique(array_map('intval', $validated['quiz_ids'])));
+        $changes = match ($validated['bulk_action']) {
+            'approve' => ['status' => 'approved'],
+            'reject' => ['status' => 'rejected', 'is_public' => false],
+            'make_public' => ['is_public' => true],
+            'make_private' => ['is_public' => false],
+            'change_owner' => ['creator_id' => (int) $validated['owner_id']],
+        };
+
+        // Publikussá csak jóváhagyott kvíz tehető.
+        if ($validated['bulk_action'] === 'make_public') {
+            $notApprovedCount = Quiz::query()
+                ->whereIn('id', $quizIds)
+                ->where('status', '!=', 'approved')
+                ->count();
+
+            if ($notApprovedCount > 0) {
+                return back()->withErrors([
+                    'bulk_action' => 'Publikussá csak jóváhagyott kvízek tehetők.',
+                ]);
+            }
+
+            $incompleteCount = Quiz::query()
+                ->whereIn('id', $quizIds)
+                ->whereHas('questions', null, '<', 100)
+                ->count();
+
+            if ($incompleteCount > 0) {
+                return back()->withErrors([
+                    'bulk_action' => 'Publikussá csak legalább 100 kérdést tartalmazó kvízek tehetők.',
+                ]);
+            }
+        }
+
+        $updatedCount = DB::transaction(
+            fn () => Quiz::query()->whereIn('id', $quizIds)->update($changes)
+        );
+
+        return back()->with('success', "{$updatedCount} kvíz tömeges módosítása elkészült.");
+    }
+
+    /**
+     * Könnyű, szerveroldali kvízkereső admin autocomplete mezőkhöz.
+     */
+    public function search(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user->isUseradmin() && !$user->isHostadmin()) {
+            abort(403);
+        }
+
+        $search = trim((string) $request->query('q', ''));
+
+        $quizzes = Quiz::query()
+            ->with('creator:id,name,email')
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($nestedQuery) use ($search) {
+                    $nestedQuery->where('title', 'like', "%{$search}%")
+                        ->when(is_numeric($search), fn ($idQuery) => $idQuery->orWhere('id', (int) $search))
+                        ->orWhereHas('creator', function ($creatorQuery) use ($search) {
+                            $creatorQuery->where('name', 'like', "%{$search}%")
+                                ->orWhere('email', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->latest()
+            ->limit(20)
+            ->get(['id', 'title', 'creator_id']);
+
+        return response()->json($quizzes->map(fn (Quiz $quiz) => [
+            'id' => $quiz->id,
+            'title' => $quiz->title,
+            'creator' => $quiz->creator?->name,
+        ]));
+    }
+
+    /**
+     * Pont- és statisztikamentes admin próbajáték.
+     */
+    public function preview(Quiz $quiz)
+    {
+        $user = Auth::user();
+
+        if (!$user->isUseradmin() && !$user->isHostadmin()) {
+            abort(403, 'Csak adminisztrátor indíthat próbajátékot.');
+        }
+
+        $quiz->load(['creator', 'category']);
+        $questions = $quiz->questions()
+            ->with('options')
+            ->where('is_active', true)
+            ->inRandomOrder()
+            ->limit(10)
+            ->get();
+
+        return view('creator.preview', compact('quiz', 'questions'));
     }
 
     /**
@@ -126,6 +288,23 @@ class QuizManagementController extends Controller
 
         if (!$user->isUseradmin() && !$user->isHostadmin() && $quiz->creator_id !== $user->id) {
             abort(403, 'Nincs jogosultságod ehhez a kvízhez!');
+        }
+
+        $coverImage = $request->file('cover_image');
+
+        // Laravel's generic validation message hides PHP's actual upload error.
+        // Keep the diagnostic in the log and show a useful message to the user.
+        if ($coverImage && !$coverImage->isValid()) {
+            Log::warning('Quiz cover image upload failed before validation.', [
+                'quiz_id' => $quiz->id,
+                'user_id' => $user->id,
+                'upload_error_code' => $coverImage->getError(),
+                'upload_error_message' => $coverImage->getErrorMessage(),
+            ]);
+
+            throw ValidationException::withMessages([
+                'cover_image' => 'A borítókép feltöltése sikertelen: '.$coverImage->getErrorMessage(),
+            ]);
         }
 
         $validated = $request->validate([
@@ -262,10 +441,10 @@ class QuizManagementController extends Controller
     {
         $questionCount = $quiz->questions()->count();
 
-        // Ha eléri a 100 kérdést és jóvá volt hagyva (approved), élesítjük!
+        // A jóváhagyás és a publikusság külön mező; 100 kérdésnél publikussá tesszük.
         if ($questionCount >= 100 && $quiz->status === 'approved') {
             $quiz->update([
-                'status' => 'published'
+                'is_public' => true,
             ]);
             return true;
         }

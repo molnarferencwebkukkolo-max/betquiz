@@ -69,9 +69,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('my-quizzes', QuizManagementController::class)
         ->names('my-quizzes')
         ->parameters(['my-quizzes' => 'quiz']);
+    Route::get('/my-quizzes/{quiz}/preview', [QuizManagementController::class, 'preview'])
+        ->name('my-quizzes.preview');
 
     Route::post('/my-quizzes/{quiz}/questions/import', [QuestionController::class, 'importForQuiz'])->name('my-quizzes.questions.import');
     Route::post('/my-quizzes/{quiz}/questions/store', [QuestionController::class, 'storeForQuiz'])->name('questions.storeForQuiz');
+    Route::patch('/my-quizzes/{quiz}/questions/bulk', [QuestionController::class, 'bulkUpdate'])
+        ->name('my-quizzes.questions.bulk-update');
 
     Route::resource('questions', QuestionController::class);
 
@@ -104,7 +108,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/quizzes/{quiz}/reject', [QuizManagementController::class, 'rejectQuiz'])->name('quizzes.reject');
 
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
+        Route::get('/quizzes/search', [QuizManagementController::class, 'search'])->name('quizzes.search');
         Route::post('/quizzes/{quiz}/transfer', [QuizManagementController::class, 'transferOwnership'])->name('quizzes.transfer');
+        Route::patch('/quizzes/bulk', [QuizManagementController::class, 'bulkUpdate'])->name('quizzes.bulk-update');
     });
 
 });

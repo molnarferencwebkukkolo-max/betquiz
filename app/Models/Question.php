@@ -13,7 +13,6 @@ class Question extends Model
     protected $fillable = [
         'quiz_id', // <-- FONTOS: benne kell lennie a fillable tömbben!
         'category_id',
-        'creator_id',
         'difficulty',
         'question_text',
         'image_path',
@@ -91,8 +90,4 @@ class Question extends Model
         return $this->hasMany(Option::class);
     }
 
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'creator_id');
-    }
 }

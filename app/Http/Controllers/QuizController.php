@@ -36,6 +36,7 @@ class QuizController extends Controller
 
         // 🟢 2. AZ ALAP LEKÉRDEZÉSBE AZONNAL BEÉPÍTJÜK A SZŰRÉST
         $baseQuery = Quiz::where('status', 'approved')
+            ->where('is_public', true)
             ->when($userId, fn($q) => $q->where('creator_id', '!=', $userId))
             ->when(!empty($dislikedQuizIds), fn($q) => $q->whereNotIn('quizzes.id', $dislikedQuizIds)) // 🟢 Automatikusan kizárja a dislike-oltakat az összes dobozból!
             ->has('questions', '>=', 100)
@@ -62,6 +63,7 @@ class QuizController extends Controller
             if (!empty($favIds)) {
                 $favoriteQuizzes = Quiz::whereIn('id', $favIds)
                     ->where('status', 'approved')
+                    ->where('is_public', true)
                     ->with(['category', 'creator', 'tags'])
                     ->withCount('questions')
                     ->withSum('questions as total_answers', 'times_answered')
@@ -139,10 +141,8 @@ class QuizController extends Controller
         $user = Auth::user();
         $categories = Category::all();
 
-        $quizzesQuery = Quiz::where(function($q) {
-            $q->where('status', 'approved')
-                ->orWhere('status', 'published');
-        })
+        $quizzesQuery = Quiz::where('status', 'approved')
+            ->where('is_public', true)
             ->where('creator_id', '!=', $user->id)
             ->has('questions', '>=', 100)
             ->with(['category', 'creator', 'tags'])
@@ -206,6 +206,7 @@ class QuizController extends Controller
     {
         /** @var \App\Models\User $user */
         $user = Auth::user();
+        $this->ensureQuizIsPlayable($quiz, $user);
         $quiz->load(['category', 'creator']);
         $quiz->load('tags');
         $quiz->loadSum('questions as total_answers', 'times_answered');
@@ -415,6 +416,7 @@ class QuizController extends Controller
     {
         /** @var \App\Models\User $user */
         $user = Auth::user();
+        $this->ensureQuizIsPlayable($quiz, $user);
 
         $validated = $request->validate([
             'game_mode'      => 'required|in:normal,odds',
@@ -497,6 +499,21 @@ class QuizController extends Controller
         ]);
 
         return redirect()->route('quiz.play.screen', $quiz);
+    }
+
+    /**
+     * Privát vagy nem jóváhagyott kvízt csak a tulajdonos és admin nyithat meg.
+     */
+    private function ensureQuizIsPlayable(Quiz $quiz, User $user): void
+    {
+        $isPublicAndApproved = $quiz->status === 'approved' && $quiz->is_public;
+        $canManage = $user->isUseradmin()
+            || $user->isHostadmin()
+            || $quiz->creator_id === $user->id;
+
+        if (!$isPublicAndApproved && !$canManage) {
+            abort(403, 'Ez a kvíz jelenleg nem publikus.');
+        }
     }
 
     public function playScreen(Quiz $quiz)

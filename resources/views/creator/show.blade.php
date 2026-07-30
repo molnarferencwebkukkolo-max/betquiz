@@ -38,7 +38,7 @@
     @php
         $qCount = $quiz->questions->count();
         $percent = min(100, round(($qCount / 100) * 100));
-        $isPublished = ($quiz->status === 'approved' || $quiz->status === 'published');
+        $isPublished = (bool) $quiz->is_public;
         $canPublish = ($qCount >= 100);
         $totalAnswers = $quiz->totalAnswersCount();
         $correctAnswers = $quiz->correctAnswersCount();
@@ -90,22 +90,26 @@
                 </a>
 
                 <!-- 🚀 Publikálás / Visszavonás Gomb -->
-                <form action="{{ route('my-quizzes.update', $quiz) }}" method="POST">
-                    @csrf
-                    @if($isPublished)
-                        <button type="submit" class="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white font-extrabold rounded-2xl shadow transition flex items-center gap-2 text-sm">
-                            🔒 Publikálás Visszavonása
-                        </button>
-                    @else
-                        <button type="submit"
-                                {{ !$canPublish ? 'disabled' : '' }}
-                                class="px-5 py-3 font-extrabold rounded-2xl shadow transition flex items-center gap-2 text-sm
-                                           {{ $canPublish ? 'bg-green-600 hover:bg-green-700 text-white cursor-pointer' : 'bg-gray-200 text-gray-400 cursor-not-allowed' }}"
-                                title="{{ !$canPublish ? 'Még hiányzik ' . (100 - $qCount) . ' db kérdés a publikáláshoz!' : 'Kattints a publikáláshoz!' }}">
-                            🚀 Kvíz Publikálása (100/100)
-                        </button>
-                    @endif
-                </form>
+                @if($user->isUseradmin() || $user->isHostadmin())
+                    <form action="{{ route('admin.quizzes.bulk-update') }}" method="POST">
+                        @csrf
+                        @method('PATCH')
+                        <input type="hidden" name="quiz_ids[]" value="{{ $quiz->id }}">
+                        <input type="hidden" name="bulk_action" value="{{ $isPublished ? 'make_private' : 'make_public' }}">
+                        @if($isPublished)
+                            <button type="submit" class="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white font-extrabold rounded-2xl shadow transition flex items-center gap-2 text-sm">
+                                🔒 Publikálás visszavonása
+                            </button>
+                        @else
+                            <button type="submit"
+                                    {{ !$canPublish || $quiz->status !== 'approved' ? 'disabled' : '' }}
+                                    class="px-5 py-3 font-extrabold rounded-2xl shadow transition flex items-center gap-2 text-sm
+                                               {{ $canPublish && $quiz->status === 'approved' ? 'bg-green-600 hover:bg-green-700 text-white cursor-pointer' : 'bg-gray-200 text-gray-400 cursor-not-allowed' }}">
+                                🚀 Kvíz publikálása
+                            </button>
+                        @endif
+                    </form>
+                @endif
                 <!-- TÖRLÉS Gomb -->
                 <form action="{{ route('my-quizzes.destroy', $quiz) }}" method="POST" onsubmit="return confirm('Biztosan törölni szeretnéd ezt a kvízt?');">
                     @csrf
@@ -178,10 +182,80 @@
             <h2 class="text-xl font-bold text-gray-800">❓ A Kvízben szereplő kérdések ({{ $qCount }} db)</h2>
         </div>
 
+        <form id="question-bulk-form"
+              action="{{ route('my-quizzes.questions.bulk-update', $quiz) }}"
+              method="POST"
+              class="p-5 bg-slate-50 border-b border-gray-100">
+            @csrf
+            @method('PATCH')
+            <div class="flex flex-col lg:flex-row lg:items-end gap-3">
+                <div class="flex-1">
+                    <label for="question-bulk-action" class="block text-xs font-extrabold uppercase text-gray-500 mb-2">
+                        Tömeges művelet
+                    </label>
+                    <select id="question-bulk-action" name="bulk_action" required
+                            class="w-full px-4 py-3 rounded-2xl border border-gray-200 bg-white">
+                        <option value="">Válassz műveletet…</option>
+                        <option value="change_difficulty">Nehézség módosítása</option>
+                        @if($user->isUseradmin() || $user->isHostadmin())
+                            <option value="move_to_quiz">Áthelyezés másik kvízbe</option>
+                        @endif
+                    </select>
+                </div>
+
+                <div id="question-difficulty-field" class="flex-1 hidden">
+                    <label for="question-bulk-difficulty" class="block text-xs font-extrabold uppercase text-gray-500 mb-2">
+                        Új nehézség
+                    </label>
+                    <select id="question-bulk-difficulty" name="difficulty"
+                            class="w-full px-4 py-3 rounded-2xl border border-gray-200 bg-white">
+                        <option value="">Válassz nehézséget…</option>
+                        <option value="easy">Könnyű</option>
+                        <option value="medium">Közepes</option>
+                        <option value="hard">Nehéz</option>
+                    </select>
+                </div>
+
+                @if($user->isUseradmin() || $user->isHostadmin())
+                    <div id="question-target-quiz-field" class="flex-1 hidden relative">
+                        <label for="target-quiz-search" class="block text-xs font-extrabold uppercase text-gray-500 mb-2">
+                            Célkvíz keresése
+                        </label>
+                        <input id="target-quiz-id" type="hidden" name="target_quiz_id">
+                        <input id="target-quiz-search" type="search" autocomplete="off"
+                               placeholder="Kvíznév, szerző vagy ID…"
+                               class="w-full px-4 py-3 rounded-2xl border border-gray-200 bg-white">
+                        <div id="target-quiz-results"
+                             class="hidden absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-2xl shadow-xl max-h-64 overflow-y-auto"></div>
+                    </div>
+                @endif
+
+                <button type="submit"
+                        class="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-2xl">
+                    Alkalmazás a kijelöltekre
+                </button>
+            </div>
+            <div class="flex items-center gap-4 mt-3">
+                <button id="select-all-questions-button" type="button"
+                        class="text-xs font-extrabold text-indigo-600 hover:text-indigo-800">
+                    Összes kijelölése
+                </button>
+                <button id="clear-question-selection-button" type="button"
+                        class="text-xs font-extrabold text-gray-500 hover:text-gray-800">
+                    Kijelölés törlése
+                </button>
+                <span id="question-selection-count" class="text-xs font-bold text-gray-500">0 kérdés kijelölve</span>
+            </div>
+        </form>
+
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
                 <tr class="bg-gray-50 border-b border-gray-100 text-xs uppercase font-extrabold text-gray-500 tracking-wider">
+                    <th class="p-4">
+                        <input id="select-all-questions" type="checkbox" class="w-4 h-4 accent-indigo-600"
+                               title="Összes kijelölése">
+                    </th>
                     <th class="p-4">#</th>
                     <th class="p-4">Kérdés Szövege</th>
                     <th class="p-4">Nehézség</th>
@@ -205,6 +279,11 @@
                     @endphp
 
                     <tr class="hover:bg-gray-50/50 transition">
+                        <td class="p-4">
+                            <input type="checkbox" name="question_ids[]" value="{{ $question->id }}"
+                                   form="question-bulk-form"
+                                   class="question-row-checkbox w-4 h-4 accent-indigo-600">
+                        </td>
                         <td class="p-4 font-bold text-gray-400">{{ $index + 1 }}.</td>
 
                         <td class="p-4 font-semibold text-gray-800 max-w-xs sm:max-w-md">
@@ -259,7 +338,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="p-8 text-center text-gray-400 font-semibold">
+                        <td colspan="8" class="p-8 text-center text-gray-400 font-semibold">
                             Ebben a kvízben még nincsenek kérdések! Használd a fenti CSV importálót vagy adj hozzá egyesével.
                         </td>
                     </tr>
@@ -270,6 +349,113 @@
     </div>
 
 </div>
+
+<script>
+    (() => {
+        const checkboxes = [...document.querySelectorAll('.question-row-checkbox')];
+        const bulkForm = document.getElementById('question-bulk-form');
+        const selectAll = document.getElementById('select-all-questions');
+        const selectAllButton = document.getElementById('select-all-questions-button');
+        const clearButton = document.getElementById('clear-question-selection-button');
+        const selectionCount = document.getElementById('question-selection-count');
+        const action = document.getElementById('question-bulk-action');
+        const difficultyField = document.getElementById('question-difficulty-field');
+        const difficulty = document.getElementById('question-bulk-difficulty');
+        const targetField = document.getElementById('question-target-quiz-field');
+        const targetInput = document.getElementById('target-quiz-id');
+        const targetSearch = document.getElementById('target-quiz-search');
+        const targetResults = document.getElementById('target-quiz-results');
+        let searchTimer;
+
+        const refreshSelection = () => {
+            const count = checkboxes.filter((checkbox) => checkbox.checked).length;
+            selectionCount.textContent = `${count} kérdés kijelölve`;
+            selectAll.checked = checkboxes.length > 0 && count === checkboxes.length;
+            selectAll.indeterminate = count > 0 && count < checkboxes.length;
+        };
+
+        const setAll = (checked) => {
+            checkboxes.forEach((checkbox) => checkbox.checked = checked);
+            refreshSelection();
+        };
+
+        selectAll.addEventListener('change', () => setAll(selectAll.checked));
+        selectAllButton.addEventListener('click', () => setAll(true));
+        clearButton.addEventListener('click', () => setAll(false));
+        checkboxes.forEach((checkbox) => checkbox.addEventListener('change', refreshSelection));
+
+        action.addEventListener('change', () => {
+            const changesDifficulty = action.value === 'change_difficulty';
+            const movesQuiz = action.value === 'move_to_quiz';
+            difficultyField.classList.toggle('hidden', !changesDifficulty);
+            targetField?.classList.toggle('hidden', !movesQuiz);
+            difficulty.required = changesDifficulty;
+            if (targetInput) targetInput.required = movesQuiz;
+        });
+
+        targetSearch?.addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            targetInput.value = '';
+            const query = targetSearch.value.trim();
+            if (query.length < 2) {
+                targetResults.classList.add('hidden');
+                return;
+            }
+
+            searchTimer = setTimeout(async () => {
+                const response = await fetch(`{{ route('admin.quizzes.search') }}?q=${encodeURIComponent(query)}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                const quizzes = await response.json();
+                targetResults.innerHTML = '';
+
+                quizzes.forEach((quiz) => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'block w-full text-left px-4 py-3 hover:bg-indigo-50 border-b border-gray-100';
+                    button.textContent = `#${quiz.id} · ${quiz.title}${quiz.creator ? ` — ${quiz.creator}` : ''}`;
+                    button.addEventListener('click', () => {
+                        targetInput.value = quiz.id;
+                        targetSearch.value = button.textContent;
+                        targetResults.classList.add('hidden');
+                    });
+                    targetResults.appendChild(button);
+                });
+
+                targetResults.classList.toggle('hidden', quizzes.length === 0);
+            }, 300);
+        });
+
+        bulkForm.addEventListener('submit', (event) => {
+            const checkedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
+
+            if (checkedCount === 0) {
+                event.preventDefault();
+                window.alert('Jelölj ki legalább egy kérdést a tömeges művelethez!');
+                return;
+            }
+
+            const actionLabel = action.selectedOptions[0]?.textContent.trim() || 'kiválasztott művelet';
+            let detail = '';
+
+            if (action.value === 'change_difficulty') {
+                detail = `\nÚj nehézség: ${difficulty.selectedOptions[0]?.textContent.trim() || 'nincs kiválasztva'}`;
+            } else if (action.value === 'move_to_quiz') {
+                detail = `\nCélkvíz: ${targetSearch?.value || 'nincs kiválasztva'}`;
+            }
+
+            const confirmed = window.confirm(
+                `Biztosan végrehajtod ezt a műveletet?\n\n` +
+                `Művelet: ${actionLabel}\n` +
+                `Kijelölt kérdések: ${checkedCount}${detail}`
+            );
+
+            if (!confirmed) {
+                event.preventDefault();
+            }
+        });
+    })();
+</script>
 
 </body>
 </html>

@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Category;
 use App\Models\Question;
 use App\Models\Option;
+use App\Models\Quiz;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -330,15 +331,19 @@ class QuizSeeder extends Seeder
     /**
      * Pici segédfüggvény a tiszta és átlátható kódért.
      */
-    private function createQ($categoryId, $diff, $huQ, $enQ, array $options, $userId)
+    private function createQ($categoryId, $diff, $huQ, $enQ, array $options, $quizOwnerId)
     {
+        $quizId = Quiz::query()
+            ->where('creator_id', $quizOwnerId)
+            ->value('id');
+
         $q = Question::create([
+            'quiz_id' => $quizId,
             'category_id' => $categoryId,
             'difficulty' => $diff,
             'question_text' => ['hu' => $huQ, 'en' => $enQ],
             'is_approved' => true,
             'is_active' => true,
-            'creator_id' => $userId
         ]);
 
         foreach ($options as $opt) {

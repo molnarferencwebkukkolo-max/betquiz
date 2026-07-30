@@ -21,7 +21,12 @@ class Quiz extends Model
         'description',
         'cover_image',
         'status',
+        'is_public',
         'rejection_reason',
+    ];
+
+    protected $casts = [
+        'is_public' => 'boolean',
     ];
 
     protected static function booted(): void
