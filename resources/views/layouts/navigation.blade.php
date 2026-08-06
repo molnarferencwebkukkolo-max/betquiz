@@ -44,6 +44,13 @@
                             Felhasználók
                         </span>
                     @endif
+
+                    @if(auth()->check() && auth()->user()->isHostadmin())
+                        <a href="{{ route('admin.categories.index') }}"
+                           class="nav-link-item nav-link-purple {{ request()->routeIs('admin.categories.*') ? 'active' : '' }}">
+                            Kategóriák
+                        </a>
+                    @endif
                 </nav>
             </div>
 

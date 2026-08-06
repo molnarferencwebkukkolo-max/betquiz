@@ -28,6 +28,17 @@ class Category extends Model
     }
 
     /**
+     * A kategóriához tartozó kvízek.
+     *
+     * A kapcsolatot a törlési védelem és az adminfelület darabszámai is
+     * használják, ezért nem csak a kérdések kapcsolatát tartjuk nyilván.
+     */
+    public function quizzes(): HasMany
+    {
+        return $this->hasMany(Quiz::class);
+    }
+
+    /**
      * Dinamikus többnyelvű név (getter: $category->translated_name)
      */
     public function getTranslatedNameAttribute(): string

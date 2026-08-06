@@ -101,7 +101,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // 5. ADMINISZTRÁCIÓ
     // ------------------------------------------------------------------------
     Route::prefix('admin')->name('admin.')->group(function () {
-        Route::resource('categories', CategoryController::class);
+        // A kategóriáknál csak a ténylegesen használt kezelőműveleteket tesszük elérhetővé.
+        Route::resource('categories', CategoryController::class)
+            ->only(['index', 'store', 'update', 'destroy']);
         Route::resource('settings', SettingController::class);
 
         Route::post('/quizzes/{quiz}/approve', [QuizManagementController::class, 'approveQuiz'])->name('quizzes.approve');

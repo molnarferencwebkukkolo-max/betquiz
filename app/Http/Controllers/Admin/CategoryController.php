@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class CategoryController extends Controller
 {
@@ -14,7 +15,13 @@ class CategoryController extends Controller
      */
     public function index()
     {
-        $categories = Category::withCount('questions')->latest()->get();
+        $this->authorizeHostadmin();
+
+        $categories = Category::query()
+            ->withCount(['quizzes', 'questions'])
+            ->latest()
+            ->get();
+
         return view('admin.categories.index', compact('categories'));
     }
 
@@ -23,10 +30,12 @@ class CategoryController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeHostadmin();
+
         // Validáljuk a kétnyelvű bemenetet
         $request->validate([
             'name.hu' => 'required|string|max:255',
-            'name.en' => 'required|string|max:255',
+            'name.en' => 'nullable|string|max:255',
             'icon'    => 'nullable|string|max:50',
         ]);
 
@@ -36,7 +45,7 @@ class CategoryController extends Controller
                 'en' => $request->input('name.en'),
             ],
             // A slug-ot az angol vagy magyar névből képezzük automatikusan
-            'slug' => Str::slug($request->input('name.en') ?: $request->input('name.hu')),
+            'slug' => $this->uniqueSlug($request->input('name.en') ?: $request->input('name.hu')),
             'icon' => $request->input('icon', 'fa-folder'),
             'is_active' => $request->has('is_active'),
         ]);
@@ -49,9 +58,11 @@ class CategoryController extends Controller
      */
     public function update(Request $request, Category $category)
     {
+        $this->authorizeHostadmin();
+
         $request->validate([
             'name.hu' => 'required|string|max:255',
-            'name.en' => 'required|string|max:255',
+            'name.en' => 'nullable|string|max:255',
             'icon'    => 'nullable|string|max:50',
         ]);
 
@@ -60,7 +71,10 @@ class CategoryController extends Controller
                 'hu' => $request->input('name.hu'),
                 'en' => $request->input('name.en'),
             ],
-            'slug' => Str::slug($request->input('name.en') ?: $request->input('name.hu')),
+            'slug' => $this->uniqueSlug(
+                $request->input('name.en') ?: $request->input('name.hu'),
+                $category
+            ),
             'icon' => $request->input('icon'),
             'is_active' => $request->has('is_active'),
         ]);
@@ -73,7 +87,45 @@ class CategoryController extends Controller
      */
     public function destroy(Category $category)
     {
+        $this->authorizeHostadmin();
+
+        // Az adatbázis kaszkádos idegen kulcsai miatt egy használt kategória
+        // törlése kvízeket és kérdéseket is eltávolítana. Ezt itt védjük ki.
+        if ($category->quizzes()->exists() || $category->questions()->exists()) {
+            throw ValidationException::withMessages([
+                'category' => 'Használatban lévő kategória nem törölhető. Inkább állítsd inaktívra.',
+            ]);
+        }
+
         $category->delete();
         return redirect()->back()->with('success', 'Kategória törölve!');
+    }
+
+    /**
+     * A kategóriakezelés kizárólag a host admin feladata.
+     */
+    private function authorizeHostadmin(): void
+    {
+        abort_unless(auth()->user()?->isHostadmin(), 403);
+    }
+
+    /**
+     * Emberileg olvasható, de adatbázis-szinten is egyedi slugot készít.
+     */
+    private function uniqueSlug(string $name, ?Category $ignoredCategory = null): string
+    {
+        $baseSlug = Str::slug($name) ?: 'kategoria';
+        $slug = $baseSlug;
+        $suffix = 2;
+
+        while (Category::query()
+            ->when($ignoredCategory, fn ($query) => $query->whereKeyNot($ignoredCategory->getKey()))
+            ->where('slug', $slug)
+            ->exists()) {
+            $slug = $baseSlug.'-'.$suffix;
+            $suffix++;
+        }
+
+        return $slug;
     }
 }

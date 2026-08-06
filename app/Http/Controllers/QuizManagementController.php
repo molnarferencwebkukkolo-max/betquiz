@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class QuizManagementController extends Controller
@@ -208,7 +209,7 @@ class QuizManagementController extends Controller
      */
     public function create()
     {
-        $categories = Category::all();
+        $categories = Category::query()->where('is_active', true)->get();
 
         return view('creator.create', compact('categories'));
     }
@@ -221,7 +222,10 @@ class QuizManagementController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'category_id' => 'required|exists:categories,id',
+            'category_id' => [
+                'required',
+                Rule::exists('categories', 'id')->where('is_active', true),
+            ],
         ]);
 
         $quiz = Quiz::create([
@@ -272,7 +276,12 @@ class QuizManagementController extends Controller
             abort(403, 'Nincs jogosultságod ehhez a kvízhez!');
         }
 
-        $categories = Category::all();
+        // A kvíz jelenlegi kategóriája inaktiválás után is szerkeszthető
+        // marad, de másik inaktív kategóriát nem lehet kiválasztani.
+        $categories = Category::query()
+            ->where('is_active', true)
+            ->orWhereKey($quiz->category_id)
+            ->get();
         $allTags = Tag::query()->orderBy('name')->pluck('name');
         $quiz->load('tags');
 
@@ -310,7 +319,14 @@ class QuizManagementController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'category_id' => 'required|exists:categories,id',
+            'category_id' => [
+                'required',
+                Rule::exists('categories', 'id')->where(
+                    fn ($query) => $query
+                        ->where('is_active', true)
+                        ->orWhere('id', $quiz->category_id)
+                ),
+            ],
             'seo_title' => 'nullable|string|max:255',
             'seo_description' => 'nullable|string|max:160',
             'tags' => 'nullable|string|max:1000',

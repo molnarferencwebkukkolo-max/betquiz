@@ -139,7 +139,9 @@ class QuizController extends Controller
     {
         /** @var \App\Models\User $user */
         $user = Auth::user();
-        $categories = Category::all();
+        // Inaktív kategóriába új szűrést/játékot már nem kínálunk,
+        // a korábbi kvízek kapcsolatait azonban az adatbázisban megőrizzük.
+        $categories = Category::query()->where('is_active', true)->get();
 
         $quizzesQuery = Quiz::where('status', 'approved')
             ->where('is_public', true)
