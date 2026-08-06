@@ -8,6 +8,7 @@
 - Mindig vizsgáld meg, hogy egy eljárás még mihez kapcsolódik, hogy ne romoljon el a működő rész.
 - When the user asks to update `AGENTS.md` at the end of the day, always review and confirm what is done, what is not done, what new items were added, and update the `Next Development Priorities` section accordingly.
 - MINDIG a main ágra tesszük a gitre, de erre kérdezz rá!
+- A `database/database.sqlite` fájlt is mindig commitoljuk és feltöltjük a többi módosítással együtt.
 
 ## Next Development Priorities
 
