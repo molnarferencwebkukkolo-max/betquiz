@@ -7,15 +7,25 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'role', 'points', 'time_travel_theme'])] // <-- ITT ADD HOZZÁ A 'points'-ot
+#[Fillable(['name', 'email', 'password', 'role', 'is_banned', 'is_active', 'points', 'time_travel_theme'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    /**
+     * Az adatbázis-defaultokat modelloldalon is tükrözzük, hogy egy frissen
+     * létrehozott példány már az első refresh előtt is aktívnak számítson.
+     */
+    protected $attributes = [
+        'is_banned' => false,
+        'is_active' => true,
+    ];
 
     /**
      * Get the attributes that should be cast.
@@ -28,6 +38,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'points' => 'integer', // <-- Ezt is beteheted, hogy a Laravel mindig számként kezelje
+            'is_banned' => 'boolean',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -55,5 +67,15 @@ class User extends Authenticatable
     public function dislikes()
     {
         return $this->belongsToMany(Quiz::class, 'quiz_user_dislikes')->withTimestamps();
+    }
+
+    /**
+     * A felhasználó által létrehozott kvízek.
+     *
+     * Az admin felhasználólistában ebből számoljuk a tartalmi aktivitást.
+     */
+    public function createdQuizzes(): HasMany
+    {
+        return $this->hasMany(Quiz::class, 'creator_id');
     }
 }

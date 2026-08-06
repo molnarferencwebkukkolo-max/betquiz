@@ -40,9 +40,10 @@
                             Kérdésbank
                         </a>
 
-                        <span class="badge-no-quiz" style="cursor: not-allowed; opacity: 0.7;" title="Hamarosan érkezik">
+                        <a href="{{ route('admin.users.index') }}"
+                           class="nav-link-item nav-link-purple {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
                             Felhasználók
-                        </span>
+                        </a>
                     @endif
 
                     @if(auth()->check() && auth()->user()->isHostadmin())

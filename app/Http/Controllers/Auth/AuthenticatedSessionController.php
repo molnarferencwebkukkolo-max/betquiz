@@ -29,7 +29,9 @@ class AuthenticatedSessionController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+        // Az is_active feltétel már az autentikáció előtt kizárja az
+        // inaktivált fiókokat, így azokhoz új session sem jöhet létre.
+        if (! Auth::attempt([...$credentials, 'is_active' => true], $request->boolean('remember'))) {
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),
             ]);

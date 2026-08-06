@@ -20,7 +20,7 @@ use App\Http\Controllers\UserController;
 
 Route::get('/', [QuizController::class, 'dashboard']);
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'active', 'verified'])->group(function () {
 
     // ------------------------------------------------------------------------
     // 1. DASHBOARD
@@ -110,6 +110,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/quizzes/{quiz}/reject', [QuizManagementController::class, 'rejectQuiz'])->name('quizzes.reject');
 
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
+        Route::patch('/users/{user}/status', [UserController::class, 'updateStatus'])
+            ->name('users.status');
         Route::get('/quizzes/search', [QuizManagementController::class, 'search'])->name('quizzes.search');
         Route::post('/quizzes/{quiz}/transfer', [QuizManagementController::class, 'transferOwnership'])->name('quizzes.transfer');
         Route::patch('/quizzes/bulk', [QuizManagementController::class, 'bulkUpdate'])->name('quizzes.bulk-update');

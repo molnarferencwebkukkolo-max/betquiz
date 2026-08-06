@@ -12,6 +12,10 @@
 
 ## Next Development Priorities
 
+- FIRST: Investigate and fix the login flow where submitting the login form returns to the login page without visible progress:
+  - reproduce the browser request and inspect the exact POST response, validation errors, cookies, and session persistence;
+  - verify the real hostadmin password hash and decide whether the affected account needs password reset and/or email verification;
+  - confirm login, logout, inactive-account blocking, and existing-session invalidation end to end.
 - Require an admin reason when rejecting a quiz or withdrawing its approval/publication:
   - provide a selectable list of common fixed reasons;
   - selecting a reason should fill an editable free-text field;
@@ -29,6 +33,21 @@
 - Continue refining the global admin question bank with search, filters, pagination-safe selection, and any additional bulk operations needed beyond the per-quiz question bulk editor.
 
 ## Work Log
+
+### 2026-08-06
+
+- Fixed the local `betquiz.test` environment by switching the Herd site from PHP 8.3 to PHP 8.4 and replacing the stale absolute SQLite path with a portable project-relative path.
+- Completed hostadmin category management with create/edit, activation state, unique slugs, safe deletion protection, navigation access, and active-category filtering in quiz creation and the catalog.
+- Added an admin-only user list with search, role/email/account-status filters, pagination, account statistics, points, created-quiz counts, and visible account states.
+- Added separate banned and active/inactive user states plus the moderation permission matrix:
+  - hostadmins can moderate players and useradmins and grant/revoke useradmin rights;
+  - useradmins can ban/unban and activate/inactivate regular players only;
+  - self-moderation and hostadmin moderation are blocked.
+- Added inactive-account login prevention and middleware that logs out an already authenticated user after inactivation.
+- Ran the new moderation migration locally without data loss; SQLite integrity is `ok`, there are zero foreign-key violations, and the restored counts remain 8 users, 17 quizzes, 1,214 questions, and 89 recorded answers.
+- Ran the connected feature suite successfully: 27 tests and 104 assertions passed.
+- NOT DONE: the real browser login issue remains reproducible from the user's perspective: submitting the form returns to the login page without visible progress. Database integrity, account active/ban state, and the login page itself were verified; continue this investigation first tomorrow.
+- Confirmed the new project preference that the live `database/database.sqlite` file is committed and pushed with other changes despite the known risk that pulls can replace local sessions/data.
 
 ### 2026-07-30
 
