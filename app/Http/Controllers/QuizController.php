@@ -119,6 +119,14 @@ class QuizController extends Controller
             ? Quiz::where('creator_id', $userId)->with('category')->latest()->get()
             : collect();
 
+        // A kezdőoldali hero valós rendszeradatokat mutat, nem statikus
+        // marketing-számokat. Ezek a kis aggregációk csak ezen az oldalon futnak.
+        $homeStats = [
+            'quizzes' => Quiz::query()->where('status', 'approved')->where('is_public', true)->count(),
+            'players' => User::query()->where('is_active', true)->count(),
+            'answers' => Question::query()->sum('times_answered'),
+        ];
+
         return view('dashboard', compact(
             'user',
             'featuredQuizzes',
@@ -128,7 +136,8 @@ class QuizController extends Controller
             'unplayedQuizzes',
             'categoryFavoriteQuizzes',
             'popularQuizzes',
-            'myQuizzes'
+            'myQuizzes',
+            'homeStats'
         ));
     }
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Játék indítása - BetQuiz</title>
+    <title>Játék indítása - KwizzGo</title>
     <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
 <body style="padding-bottom: 3rem;">
@@ -102,7 +102,7 @@
                                 <img src="{{ asset('storage/' . $quiz->cover_image) }}" alt="{{ $quiz->title }}" style="width: 100%; height: 100%; object-fit: cover;">
                             @else
                                 <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.2); font-weight: 900; font-size: 2.5rem; user-select: none;">
-                                    BETQUIZ
+                                    KWIZZGO
                                 </div>
                             @endif
 

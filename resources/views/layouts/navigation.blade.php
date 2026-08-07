@@ -3,7 +3,7 @@
         <div class="nav-wrapper">
             <div style="display: flex; align-items: center; gap: 2rem;">
                 <a href="{{ auth()->check() ? route('dashboard') : url('/') }}" class="nav-brand">
-                    <span>BetQuiz</span>
+                    <span>Kwizz<span class="brand-accent">Go</span></span>
                 </a>
 
                 <nav style="display: flex; align-items: center; gap: 0.5rem;">

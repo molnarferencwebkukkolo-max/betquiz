@@ -90,7 +90,7 @@ class NotificationPreferenceTest extends TestCase
         $this->assertSame(['database', 'mail'], $notification->via($owner));
 
         $mail = $notification->toMail($owner);
-        $this->assertSame('BetQuiz: Kvíz elutasítva', $mail->subject);
+        $this->assertSame('KwizzGo: Kvíz elutasítva', $mail->subject);
         $this->assertContains('Adminisztrátori indok: A tartalom pontosítást igényel.', $mail->introLines);
     }
 

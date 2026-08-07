@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>BetQuiz - Játék</title>
+    <title>KwizzGo - Játék</title>
     <!-- Központi Stíluslap -->
     <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
@@ -12,7 +12,7 @@
 
 <div class="play-container">
     <div style="text-align: center; margin-bottom: 2rem;">
-        <h1 class="auth-title">🎯 BetQuiz Live</h1>
+        <h1 class="auth-title">🎯 KwizzGo Live</h1>
         <p style="color: #6b7280; font-weight: 600; margin-top: 0.25rem;">Játékos: {{ auth()->user()->name }}</p>
     </div>
 

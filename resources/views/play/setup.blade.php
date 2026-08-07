@@ -1,6 +1,6 @@
 @extends('layouts.game')
 
-@section('title', $quiz->effective_seo_title . ' - BetQuiz')
+@section('title', $quiz->effective_seo_title . ' - KwizzGo')
 @section('meta_description', $quiz->effective_seo_description)
 
 @section('content')

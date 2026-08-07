@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BetQuiz - Kérdés Hozzáadása</title>
+    <title>KwizzGo - Kérdés Hozzáadása</title>
     <!-- Központi Stíluslap -->
     <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>

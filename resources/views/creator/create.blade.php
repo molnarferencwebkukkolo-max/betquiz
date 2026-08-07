@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Új Kvíz Nyitása - BetQuiz</title>
+    <title>Új Kvíz Nyitása - KwizzGo</title>
     <!-- Központi Stíluslap -->
     <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
     <script src="https://cdn.tailwindcss.com"></script>

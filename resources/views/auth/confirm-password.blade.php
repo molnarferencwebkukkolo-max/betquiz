@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jelszó megerősítése - BetQuiz</title>
+    <title>Jelszó megerősítése - KwizzGo</title>
     <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
 <body class="auth-wrapper">

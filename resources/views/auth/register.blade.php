@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BetQuiz - Regisztráció</title>
+    <title>KwizzGo - Regisztráció</title>
     <!-- Központi Stíluslap -->
     <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
 <body class="auth-wrapper">
 
 <div class="auth-card">
-    <h2 class="auth-title">🎯 BetQuiz</h2>
+    <h2 class="auth-title">🎯 KwizzGo</h2>
     <p class="auth-subtitle-bonus">🎁 Regisztrációért 1 000 PT kezdőtőke jár!</p>
 
     <form method="POST" action="{{ route('register') }}">

@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BetQuiz - Bejelentkezés</title>
+    <title>KwizzGo - Bejelentkezés</title>
     <!-- Központi Stíluslap -->
     <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
 <body class="auth-wrapper">
 
 <div class="auth-card">
-    <h2 class="auth-title">🎯 BetQuiz</h2>
+    <h2 class="auth-title">🎯 KwizzGo</h2>
     <p class="auth-subtitle">Jelentkezz be a játék folytatásához!</p>
 
     @if (session('status'))

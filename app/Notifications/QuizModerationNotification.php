@@ -53,7 +53,7 @@ class QuizModerationNotification extends Notification
     {
         [$title, $message] = $this->content();
         $mail = (new MailMessage)
-            ->subject("BetQuiz: {$title}")
+            ->subject("KwizzGo: {$title}")
             ->greeting("Kedves {$notifiable->name}!")
             ->line($message)
             ->line("Kvíz: {$this->quiz->title}");

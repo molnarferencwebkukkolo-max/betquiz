@@ -9,11 +9,16 @@
 - When the user asks to update `AGENTS.md` at the end of the day, always review and confirm what is done, what is not done, what new items were added, and update the `Next Development Priorities` section accordingly.
 - MINDIG a main ágra tesszük a gitre, de erre kérdezz rá!
 - A `database/database.sqlite` fájlt is mindig commitoljuk és feltöltjük a többi módosítással együtt.
+- A nyilvános márkanév `KwizzGo`. A technikai azonosítók — köztük a projektmappa, repository és a `betquiz.test` helyi domain — külön kérés nélkül maradjanak változatlanok.
 
 ## Next Development Priorities
 
 ### Phase 1 - Working quizzes, registration, user management, and gameplay
 
+- Complete the `BetQuiz` -> `KwizzGo` brand migration end to end:
+  - audit all remaining user-facing copy, e-mail content, metadata, assets, and configuration;
+  - add or replace the final logo, favicon, social/SEO imagery, and branded e-mail styling;
+  - keep technical identifiers such as the project folder, repository, database, routes, and `betquiz.test` unchanged unless explicitly requested.
 - FIRST: complete notification delivery beyond the finished preference infrastructure:
   - build the weekly quiz performance report data aggregation, notification, and scheduled dispatch;
   - configure a real SMTP provider for non-local environments and verify password-reset and preference-controlled moderation e-mails end to end;

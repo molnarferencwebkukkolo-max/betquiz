@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ config('app.name', 'BetQuiz') }}</title>
+    <title>{{ config('app.name', 'KwizzGo') }}</title>
 
     <!-- Központi Stíluslap -->
     <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
@@ -13,7 +13,7 @@
 <!-- Fejléc / Navigáció -->
 <header class="welcome-nav">
     <a href="{{ url('/') }}" class="nav-brand">
-        🎲 BetQuiz
+        🎲 KwizzGo
     </a>
 
     @if (Route::has('login'))
@@ -43,7 +43,7 @@
         <div style="font-size: 4rem; margin-bottom: 1rem;">🎯</div>
         <h1 class="welcome-title">Teszteld a tudásod, tegyél tétet és nyerj!</h1>
         <p class="welcome-subtitle">
-            A BetQuiz egy interaktív kvízplatform, ahol nemcsak a tudásodat teheted próbára, de zsetonokat kockáztatva versenyezhetsz a legmagasabb pontszámokért.
+            A KwizzGo egy interaktív kvízplatform, ahol nemcsak a tudásodat teheted próbára, de zsetonokat kockáztatva versenyezhetsz a legmagasabb pontszámokért.
         </p>
 
         <div class="welcome-btn-group">
@@ -65,7 +65,7 @@
 
 <!-- Lábléc -->
 <footer class="welcome-footer">
-    &copy; {{ date('Y') }} BetQuiz. Minden jog fenntartva.
+    &copy; {{ date('Y') }} KwizzGo. Minden jog fenntartva.
 </footer>
 
 </body>

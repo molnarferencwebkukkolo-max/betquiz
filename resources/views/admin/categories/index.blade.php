@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kategóriák kezelése - BetQuiz</title>
+    <title>Kategóriák kezelése - KwizzGo</title>
     <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
