@@ -6,6 +6,7 @@ use App\Models\Quiz;
 use App\Models\Category;
 use App\Models\Tag;
 use App\Models\User;
+use App\Notifications\QuizModerationNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -98,19 +99,40 @@ class QuizManagementController extends Controller
             abort(403, 'Csak adminisztrátor módosíthat egyszerre több kvízt.');
         }
 
+        // A whitespace-only indok ne mehessen át a required validáción,
+        // és az alkotónak már a tisztított végleges szöveget mentsük.
+        $request->merge([
+            'moderation_reason' => trim((string) $request->input('moderation_reason', '')),
+        ]);
+
         $validated = $request->validate([
             'quiz_ids' => 'required|array|min:1',
             'quiz_ids.*' => 'integer|exists:quizzes,id',
             'bulk_action' => 'required|in:approve,reject,make_public,make_private,change_owner',
             'owner_id' => 'nullable|required_if:bulk_action,change_owner|exists:users,id',
+            'moderation_reason' => [
+                'nullable',
+                Rule::requiredIf(fn () => in_array($request->input('bulk_action'), ['reject', 'make_private'], true)),
+                'string',
+                'max:2000',
+            ],
         ]);
 
         $quizIds = array_values(array_unique(array_map('intval', $validated['quiz_ids'])));
+        $moderationReason = trim((string) ($validated['moderation_reason'] ?? ''));
+        $quizzes = Quiz::query()->with('creator')->whereIn('id', $quizIds)->get();
         $changes = match ($validated['bulk_action']) {
-            'approve' => ['status' => 'approved'],
-            'reject' => ['status' => 'rejected', 'is_public' => false],
-            'make_public' => ['is_public' => true],
-            'make_private' => ['is_public' => false],
+            'approve' => ['status' => 'approved', 'rejection_reason' => null],
+            'reject' => [
+                'status' => 'rejected',
+                'is_public' => false,
+                'rejection_reason' => $moderationReason,
+            ],
+            'make_public' => ['is_public' => true, 'rejection_reason' => null],
+            'make_private' => [
+                'is_public' => false,
+                'rejection_reason' => $moderationReason,
+            ],
             'change_owner' => ['creator_id' => (int) $validated['owner_id']],
         };
 
@@ -142,6 +164,24 @@ class QuizManagementController extends Controller
         $updatedCount = DB::transaction(
             fn () => Quiz::query()->whereIn('id', $quizIds)->update($changes)
         );
+
+        // Csak a tulajdonost érintő moderációs állapotváltásokból
+        // készítünk értesítést; a tulajdonoscsere külön esemény lesz.
+        $notificationEvent = match ($validated['bulk_action']) {
+            'approve' => 'approved',
+            'reject' => 'rejected',
+            'make_public' => 'published',
+            'make_private' => 'publication_withdrawn',
+            default => null,
+        };
+
+        if ($notificationEvent) {
+            $reason = in_array($notificationEvent, ['rejected', 'publication_withdrawn'], true)
+                ? $moderationReason
+                : null;
+
+            $quizzes->each(fn (Quiz $quiz) => $this->notifyQuizOwner($quiz, $notificationEvent, $reason));
+        }
 
         return back()->with('success', "{$updatedCount} kvíz tömeges módosítása elkészült.");
     }
@@ -429,13 +469,15 @@ class QuizManagementController extends Controller
             'rejection_reason' => null,
         ]);
 
+        $this->notifyQuizOwner($quiz, 'approved');
+
         return back()->with('success', 'Kvíz koncepció jóváhagyva! A készítő mostantól feltöltheti a maradék kérdéseket (100 db-ig).');
     }
 
     /**
      * Admin: Kvíz elutasítása
      */
-    public function rejectQuiz(Quiz $quiz)
+    public function rejectQuiz(Request $request, Quiz $quiz)
     {
         $user = auth()->user();
 
@@ -443,9 +485,21 @@ class QuizManagementController extends Controller
             abort(403, 'Csak adminisztrátor utasíthatja el a kvízt.');
         }
 
-        $quiz->update([
-            'status' => 'rejected'
+        $request->merge([
+            'moderation_reason' => trim((string) $request->input('moderation_reason', '')),
         ]);
+
+        $validated = $request->validate([
+            'moderation_reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $quiz->update([
+            'status' => 'rejected',
+            'is_public' => false,
+            'rejection_reason' => trim($validated['moderation_reason']),
+        ]);
+
+        $this->notifyQuizOwner($quiz, 'rejected', trim($validated['moderation_reason']));
 
         return back()->with('error', 'Kvíz koncepció elutasítva!');
     }
@@ -466,6 +520,15 @@ class QuizManagementController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * A moderáció eredményéről mindig a kívíz aktuális tulajdonosa kap
+     * belső értesítést. A null-safe hívás a régi, gazdátlan adatoknál véd.
+     */
+    private function notifyQuizOwner(Quiz $quiz, string $event, ?string $reason = null): void
+    {
+        $quiz->creator?->notify(new QuizModerationNotification($quiz, $event, $reason));
     }
 
     /**

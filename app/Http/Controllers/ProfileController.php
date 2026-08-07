@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
+use App\Models\NotificationPreference;
 
 class ProfileController extends Controller
 {
@@ -65,8 +66,15 @@ class ProfileController extends Controller
 
     public function show(Request $request)
     {
+        $notificationPreferences = $request->user()
+            ->notificationPreferences()
+            ->get()
+            ->keyBy('event');
+
         return view('profile.show', [
             'user' => $request->user(),
+            'notificationEvents' => NotificationPreference::EVENTS,
+            'notificationPreferences' => $notificationPreferences,
         ]);
     }
 

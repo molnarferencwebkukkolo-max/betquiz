@@ -97,6 +97,15 @@
                         <input type="hidden" name="quiz_ids[]" value="{{ $quiz->id }}">
                         <input type="hidden" name="bulk_action" value="{{ $isPublished ? 'make_private' : 'make_public' }}">
                         @if($isPublished)
+                            <select class="moderation-reason-preset w-full mb-2 px-3 py-2 border border-amber-200 rounded-xl text-sm">
+                                <option value="">Gyakori indok…</option>
+                                <option value="A kvíz tartalma vagy témája nem felel meg a közzétételi irányelveknek.">Nem megfelelő tartalom</option>
+                                <option value="A kérdések vagy válaszok minősége további javítást igényel.">Minőségi javítás</option>
+                                <option value="A kvíz ideiglenesen további adminisztrátori ellenőrzést igényel.">További ellenőrzés</option>
+                            </select>
+                            <textarea name="moderation_reason" rows="2" maxlength="2000" required
+                                      class="moderation-reason-input w-full mb-2 px-3 py-2 border border-amber-200 rounded-xl text-sm"
+                                      placeholder="A visszavonás indoka…"></textarea>
                             <button type="submit" class="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white font-extrabold rounded-2xl shadow transition flex items-center gap-2 text-sm">
                                 🔒 Publikálás visszavonása
                             </button>
@@ -125,6 +134,13 @@
                 </a>
             </div>
         </div>
+
+        @if($quiz->rejection_reason)
+            <div class="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-5 text-amber-950">
+                <p class="text-xs font-extrabold uppercase tracking-wide text-amber-700 mb-2">Adminisztrátori indok</p>
+                <p class="font-semibold whitespace-pre-line">{{ $quiz->rejection_reason }}</p>
+            </div>
+        @endif
 
         <!-- Haladási sáv (Progress Bar) -->
         <div class="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-6">
@@ -349,6 +365,18 @@
     </div>
 
 </div>
+
+<script>
+    document.querySelectorAll('.moderation-reason-preset').forEach((preset) => {
+        preset.addEventListener('change', () => {
+            const input = preset.closest('form')?.querySelector('.moderation-reason-input');
+            if (preset.value && input) {
+                input.value = preset.value;
+                input.focus();
+            }
+        });
+    });
+</script>
 
 <script>
     (() => {

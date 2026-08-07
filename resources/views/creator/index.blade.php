@@ -161,6 +161,29 @@
                         @endforeach
                     </select>
                 </div>
+                <div id="quiz-moderation-reason-field" class="lg:basis-full hidden rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <label for="quiz-moderation-reason-preset" class="block text-xs font-extrabold uppercase text-amber-800 mb-2">
+                        Gyakori indok
+                    </label>
+                    <select id="quiz-moderation-reason-preset"
+                            class="moderation-reason-preset w-full px-4 py-3 rounded-2xl border border-amber-200 bg-white mb-3">
+                        <option value="">Válassz indokot…</option>
+                        <option value="A kvíz leírása nem elég részletes.">Hiányos leírás</option>
+                        <option value="A kvíz tartalma vagy témája nem felel meg a közzétételi irányelveknek.">Nem megfelelő tartalom vagy téma</option>
+                        <option value="A kérdések vagy válaszok minősége további javítást igényel.">Minőségi javítás szükséges</option>
+                        <option value="A kvíz duplikált vagy jelentősen átfed egy már meglévő kvízzel.">Duplikált tartalom</option>
+                        <option value="A kvíz ideiglenesen további adminisztrátori ellenőrzést igényel.">További ellenőrzés</option>
+                    </select>
+                    <label for="quiz-moderation-reason" class="block text-xs font-extrabold uppercase text-amber-800 mb-2">
+                        Végleges, szerkeszthető indok
+                    </label>
+                    <textarea id="quiz-moderation-reason" name="moderation_reason" rows="3" maxlength="2000"
+                              class="moderation-reason-input w-full px-4 py-3 rounded-2xl border border-amber-200 bg-white"
+                              placeholder="Írd le pontosan, mit kell javítania a készítőnek…">{{ old('moderation_reason') }}</textarea>
+                    @error('moderation_reason')
+                        <p class="mt-2 text-sm font-bold text-red-700">{{ $message }}</p>
+                    @enderror
+                </div>
                 <button type="submit"
                         class="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-2xl">
                     Alkalmazás a kijelöltekre
@@ -341,6 +364,9 @@
         const bulkAction = document.getElementById('quiz-bulk-action');
         const ownerField = document.getElementById('quiz-owner-field');
         const ownerSelect = document.getElementById('quiz-owner-id');
+        const reasonField = document.getElementById('quiz-moderation-reason-field');
+        const reasonPreset = document.getElementById('quiz-moderation-reason-preset');
+        const reasonInput = document.getElementById('quiz-moderation-reason');
 
         const refreshSelection = () => {
             const checkedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
@@ -359,8 +385,18 @@
 
         bulkAction?.addEventListener('change', () => {
             const changesOwner = bulkAction.value === 'change_owner';
+            const requiresReason = ['reject', 'make_private'].includes(bulkAction.value);
             ownerField?.classList.toggle('hidden', !changesOwner);
+            reasonField?.classList.toggle('hidden', !requiresReason);
             if (ownerSelect) ownerSelect.required = changesOwner;
+            if (reasonInput) reasonInput.required = requiresReason;
+        });
+
+        reasonPreset?.addEventListener('change', () => {
+            if (reasonPreset.value && reasonInput) {
+                reasonInput.value = reasonPreset.value;
+                reasonInput.focus();
+            }
         });
 
         bulkForm?.addEventListener('submit', (event) => {

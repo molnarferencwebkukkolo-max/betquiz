@@ -53,13 +53,21 @@
                         <div style="display: flex; gap: 0.5rem;">
                             <form action="{{ route('admin.quizzes.approve', $pendingQuiz) }}" method="POST" style="margin: 0;">
                                 @csrf
-                                @method('PATCH')
                                 <button type="submit" class="status-badge-approved" style="border: none; cursor: pointer; padding: 0.5rem 0.75rem;">Jóváhagyás</button>
                             </form>
 
-                            <form action="{{ route('admin.quizzes.reject', $pendingQuiz) }}" method="POST" style="margin: 0;">
+                            <form action="{{ route('admin.quizzes.reject', $pendingQuiz) }}" method="POST" style="margin: 0; min-width: 16rem;">
                                 @csrf
-                                @method('PATCH')
+                                <select class="moderation-reason-preset" style="width: 100%; margin-bottom: 0.5rem; padding: 0.5rem; border: 1px solid #fecaca; border-radius: 0.75rem;">
+                                    <option value="">Gyakori indok…</option>
+                                    <option value="A kvíz leírása nem elég részletes.">Hiányos leírás</option>
+                                    <option value="A kvíz tartalma vagy témája nem felel meg a közzétételi irányelveknek.">Nem megfelelő tartalom</option>
+                                    <option value="A kérdések vagy válaszok minősége további javítást igényel.">Minőségi javítás</option>
+                                    <option value="A kvíz duplikált vagy jelentősen átfed egy már meglévő kvízzel.">Duplikált tartalom</option>
+                                </select>
+                                <textarea name="moderation_reason" rows="2" maxlength="2000" required class="moderation-reason-input"
+                                          placeholder="Szerkeszthető indok…"
+                                          style="width: 100%; margin-bottom: 0.5rem; padding: 0.5rem; border: 1px solid #fecaca; border-radius: 0.75rem;"></textarea>
                                 <button type="submit" class="status-badge-rejected" style="border: none; cursor: pointer; padding: 0.5rem 0.75rem;">Elutasítás</button>
                             </form>
                         </div>
@@ -68,6 +76,18 @@
             </div>
         </div>
     @endif
+
+    <script>
+        document.querySelectorAll('.moderation-reason-preset').forEach((preset) => {
+            preset.addEventListener('change', () => {
+                const input = preset.closest('form')?.querySelector('.moderation-reason-input');
+                if (preset.value && input) {
+                    input.value = preset.value;
+                    input.focus();
+                }
+            });
+        });
+    </script>
 
     <div class="quick-action-grid" style="margin-bottom: 2.5rem;">
         <a href="{{ auth()->check() ? route('quizzes.index') : '#' }}" class="quick-action-card" @guest onclick="event.preventDefault(); openGuestAuthPrompt();" @endguest>

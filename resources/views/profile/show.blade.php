@@ -107,6 +107,58 @@
                 </form>
             </div>
 
+            <!-- Értesítési beállítások -->
+            <div class="password-card">
+                <h3 class="password-card-title">🔔 Értesítések</h3>
+                <p style="color: #64748b; font-size: 0.875rem; line-height: 1.5; margin-bottom: 1.25rem;">
+                    Eseményenként kiválaszthatod, hogy az alkalmazásban, e-mailben, mindkét csatornán vagy egyiken sem kérsz értesítést.
+                </p>
+
+                <form action="{{ route('profile.notification-preferences') }}" method="POST">
+                    @csrf
+                    @method('PATCH')
+
+                    <div class="notification-preference-table">
+                        <div class="notification-preference-header">
+                            <span>Esemény</span>
+                            <span>Belső</span>
+                            <span>E-mail</span>
+                        </div>
+
+                        @foreach($notificationEvents as $event => $label)
+                            @php($preference = $notificationPreferences->get($event))
+                            <div class="notification-preference-row">
+                                <div>
+                                    <strong>{{ $label }}</strong>
+                                    @if($event === 'weekly_report')
+                                        <small>A heti jelentésküldő funkció indulásakor lép életbe.</small>
+                                    @endif
+                                </div>
+                                <label class="notification-channel-toggle">
+                                    <input type="hidden" name="preferences[{{ $event }}][event]" value="{{ $event }}">
+                                    <input type="checkbox" name="preferences[{{ $event }}][database]" value="1"
+                                           @checked(old("preferences.{$event}.database", $preference?->database_enabled ?? true))>
+                                    <span class="sr-only">{{ $label }} – belső értesítés</span>
+                                </label>
+                                <label class="notification-channel-toggle">
+                                    <input type="checkbox" name="preferences[{{ $event }}][email]" value="1"
+                                           @checked(old("preferences.{$event}.email", $preference?->email_enabled ?? false))>
+                                    <span class="sr-only">{{ $label }} – e-mail</span>
+                                </label>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    @error('preferences')
+                        <p style="color: #dc2626; font-size: 0.8rem; font-weight: 700; margin-top: 0.75rem;">{{ $message }}</p>
+                    @enderror
+
+                    <button type="submit" class="btn-save-password" style="margin-top: 1.25rem;">
+                        Értesítési beállítások mentése
+                    </button>
+                </form>
+            </div>
+
             <!-- Jelszó módosítása -->
             <div class="password-card">
                 <h3 class="password-card-title">🔑 Jelszó Módosítása</h3>

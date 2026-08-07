@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -29,8 +30,17 @@ class AuthenticatedSessionController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        // Az is_active feltétel már az autentikáció előtt kizárja az
-        // inaktivált fiókokat, így azokhoz új session sem jöhet létre.
+        // Az inaktív fiókot még a jelszó ellenőrzése előtt kizárjuk.
+        // Ezzel nem jöhet létre új session, a felhasználó pedig érthető
+        // visszajelzést kap a korábbi, látszólagos oldal-újratöltés helyett.
+        $user = User::query()->where('email', $credentials['email'])->first();
+
+        if ($user && ! $user->is_active) {
+            throw ValidationException::withMessages([
+                'email' => 'Ez a felhasználói fiók inaktív.',
+            ]);
+        }
+
         if (! Auth::attempt([...$credentials, 'is_active' => true], $request->boolean('remember'))) {
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),

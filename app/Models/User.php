@@ -78,4 +78,30 @@ class User extends Authenticatable
     {
         return $this->hasMany(Quiz::class, 'creator_id');
     }
+
+    public function notificationPreferences(): HasMany
+    {
+        return $this->hasMany(NotificationPreference::class);
+    }
+
+    /**
+     * Beállítás hiányában megőrizzük a jelenlegi viselkedést:
+     * belső értesítés igen, e-mail csak kifejezett engedéllyel.
+     */
+    public function wantsNotification(string $event, string $channel): bool
+    {
+        $preference = $this->notificationPreferences()
+            ->where('event', $event)
+            ->first();
+
+        if (! $preference) {
+            return $channel === 'database';
+        }
+
+        return match ($channel) {
+            'database' => $preference->database_enabled,
+            'mail' => $preference->email_enabled,
+            default => false,
+        };
+    }
 }

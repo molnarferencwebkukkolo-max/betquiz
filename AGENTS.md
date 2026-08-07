@@ -12,27 +12,94 @@
 
 ## Next Development Priorities
 
-- FIRST: Investigate and fix the login flow where submitting the login form returns to the login page without visible progress:
-  - reproduce the browser request and inspect the exact POST response, validation errors, cookies, and session persistence;
-  - verify the real hostadmin password hash and decide whether the affected account needs password reset and/or email verification;
-  - confirm login, logout, inactive-account blocking, and existing-session invalidation end to end.
-- Require an admin reason when rejecting a quiz or withdrawing its approval/publication:
-  - provide a selectable list of common fixed reasons;
-  - selecting a reason should fill an editable free-text field;
-  - store the final edited reason and show it to the quiz owner.
-- Build an in-app notification system with a notification bell and read/unread state.
-- Add per-user notification preferences so users can choose internal notifications/messages and/or email for events such as:
-  - quiz approval, rejection, withdrawal, or other moderation changes;
-  - weekly quiz performance reports;
-  - future account, survey, content, and gameplay events.
-- Extend user accounts with questionnaires/surveys that can award points.
-- Add content/article sections connected to quizzes, including admin authoring and links between articles and related quizzes.
-- Replace remaining large static selectors with server-side autocomplete:
+### Phase 1 - Working quizzes, registration, user management, and gameplay
+
+- FIRST: complete notification delivery beyond the finished preference infrastructure:
+  - build the weekly quiz performance report data aggregation, notification, and scheduled dispatch;
+  - configure a real SMTP provider for non-local environments and verify password-reset and preference-controlled moderation e-mails end to end;
+  - keep local development on the safe log/array mailer until real SMTP credentials are provided.
+- Add Google OAuth login and registration, including safe linking to existing accounts with the same verified e-mail address, first-login account creation, and clear handling of banned or inactive accounts.
+- Finish the gameplay helper system and define the cost, availability, animation, and exact game rules for:
+  - 50:50 answer elimination;
+  - Poker helper;
+  - 21 helper;
+  - audience vote;
+  - AI hint / "AI tells you" helper.
+- Build advertising placements with a shared, responsive component system:
+  - Google AdSense placements;
+  - affiliate banner placements;
+  - admin-configurable placement slots that do not interrupt critical gameplay interactions.
+- Replace the remaining Phase 1 large static selectors with server-side autocomplete:
   - the admin quiz selector on the single-question edit screen;
   - the bulk quiz owner selector when the user list becomes large.
 - Continue refining the global admin question bank with search, filters, pagination-safe selection, and any additional bulk operations needed beyond the per-quiz question bulk editor.
+- Complete the Phase 1 final product design pass across guest, player, creator, and admin surfaces:
+  - establish a consistent visual system for colors, typography, spacing, components, states, and feedback;
+  - finalize responsive mobile, tablet, and desktop layouts;
+  - remove remaining inline/temporary styling and consolidate reusable UI components;
+  - verify accessibility, loading/empty/error states, advertising placements, and cross-browser behavior.
+
+### Phase 2 - Quiz content and expanded user features
+
+- Add content/article sections connected to quizzes, including admin authoring and links between articles and related quizzes.
+- Extend user accounts with questionnaires/surveys that can award points.
+- Add friendships, including friend requests, acceptance/rejection, removal, privacy rules, and blocking considerations.
+- Add direct user-to-user messaging with unread state, moderation/reporting safeguards, and notification-preference integration.
+- Add clans/groups with creation, invitations or join requests, roles, membership management, and group-facing activity surfaces.
+- Expand notifications to account, survey, article/content, friendship, messaging, clan/group, and other Phase 2 events.
+- Apply the established design system to all new Phase 2 content and community surfaces.
+
+### Phase 3 - Thematic house competitions
+
+- Build admin-managed thematic house competitions:
+  - selected themes and eligible quizzes;
+  - configurable registration, start, and end windows;
+  - participation, attempt, scoring, tie-break, and eligibility rules;
+  - live and final leaderboards;
+  - individual, clan/group, point, badge, or other rewards;
+  - competition notifications, moderation, auditability, and result publication.
+- Complete the competition-specific responsive design, result states, and administrative reporting.
 
 ## Work Log
+
+### 2026-08-07
+
+- Fixed the login flow so failed authentication and validation errors are visibly displayed on the login page instead of appearing as a no-progress reload.
+- Added a dedicated inactive-account login message, accessible invalid-field states, session-regeneration coverage, logout coverage, and existing-session invalidation tests.
+- Verified that the real primary hostadmin account is active and not banned; its password is not the insecure seeder default, and no automatic password overwrite was performed.
+- Restored the complete password-reset flow and its previously empty/missing controllers and views:
+  - reset-link request, token validation, new-password storage, remember-token invalidation, password confirmation, and authenticated password update;
+  - restored the working "forgot password" link on the login page;
+  - removed stale e-mail-verification routes and the ineffective `verified` middleware because `User` intentionally does not implement `MustVerifyEmail`.
+- Added mandatory, editable admin moderation reasons for quiz rejection and approval/publication withdrawal:
+  - selectable common reasons fill the editable final-reason field;
+  - whitespace-only reasons are rejected;
+  - final reasons are stored in `rejection_reason`, shown to the quiz owner, and cleared after reapproval or republication;
+  - fixed the dashboard moderation forms' HTTP method mismatch.
+- Built the database-backed in-app notification system:
+  - navigation bell with unread counter;
+  - paginated notification center with individual and mark-all-as-read actions;
+  - ownership-safe notification access that prevents users from modifying another user's notification;
+  - quiz approval, rejection, publication, and publication-withdrawal notifications, including the final admin reason and stable quiz link.
+- Added per-user, per-event notification preferences on the profile page for internal and/or e-mail delivery:
+  - quiz approval, rejection, publication, and withdrawal events are fully connected to the preferences;
+  - weekly quiz performance report preferences are stored and ready for the future report sender;
+  - defaults preserve internal notifications while keeping e-mail opt-in only;
+  - moderation e-mails include the event, quiz, admin reason, and quiz link.
+- Added and ran the `notifications` and `notification_preferences` migrations locally after timestamped SQLite backups.
+- Verified the live SQLite database after migration: integrity is `ok` and there are zero foreign-key violations.
+- Ran the connected feature suite successfully: 51 tests and 217 assertions passed; all Blade templates compiled successfully.
+- NOT DONE: weekly quiz performance reports are not yet aggregated or scheduled; only their user preferences are implemented.
+- NOT DONE: production SMTP is not configured, so local reset and notification e-mails continue to use the configured log/array mailer behavior.
+- NOT DONE: e-mail verification remains intentionally disabled; re-enabling it would require a separate product decision and a migration/onboarding plan for existing unverified accounts.
+- NEW FOLLOW-UP: build the scheduled weekly report sender and verify preference-controlled delivery through a real SMTP provider before expanding notifications to account, survey, content, and gameplay events.
+- NEW TASK: add admin-managed thematic competitions with configurable topics, time windows, participation/scoring rules, leaderboards, and rewards.
+- NEW TASK: add Google OAuth login and registration with secure existing-account linking and the same banned/inactive-account enforcement as password authentication.
+- NEW TASK: complete the final end-to-end design pass, responsive polish, component consistency, accessibility review, and replacement of remaining temporary or inline styling.
+- PLANNING UPDATE: reorganized all remaining development into three phases: core quizzes/accounts/gameplay, content and expanded user/community features, then thematic house competitions.
+- NEW PHASE 1 TASKS: add the 50:50, Poker, 21, audience-vote, and AI-hint gameplay helpers, with their rules, costs, availability, and presentation defined before implementation.
+- NEW PHASE 1 TASK: create responsive, admin-manageable advertising placements for Google AdSense and affiliate banners without disrupting gameplay.
+- NEW PHASE 2 TASKS: add friendships, direct messaging, and clans/groups with the required privacy, moderation, membership, unread, and notification behavior.
 
 ### 2026-08-06
 

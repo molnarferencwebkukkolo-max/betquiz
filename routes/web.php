@@ -11,6 +11,8 @@ use App\Http\Controllers\PageController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\NotificationPreferenceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -20,7 +22,13 @@ use App\Http\Controllers\UserController;
 
 Route::get('/', [QuizController::class, 'dashboard']);
 
-Route::middleware(['auth', 'active', 'verified'])->group(function () {
+// Az e-mail-hitelesítés jelenleg nincs aktiválva a User modellen, ezért
+// itt csak a valóban érvényes auth- és fiókállapot-feltételek szerepelnek.
+Route::middleware(['auth', 'active'])->group(function () {
+
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::patch('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
+    Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
 
     // ------------------------------------------------------------------------
     // 1. DASHBOARD
@@ -90,6 +98,8 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('/edit', [ProfileController::class, 'edit'])->name('edit');
         Route::patch('/', [ProfileController::class, 'update'])->name('update');
         Route::post('/game-experience', [ProfileController::class, 'updateGameExperience'])->name('game-experience');
+        Route::patch('/notification-preferences', [NotificationPreferenceController::class, 'update'])
+            ->name('notification-preferences');
         Route::post('/password', [ProfileController::class, 'updatePassword'])->name('password');
         Route::delete('/', [ProfileController::class, 'destroy'])->name('destroy');
 

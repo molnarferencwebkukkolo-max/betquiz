@@ -169,6 +169,74 @@ class QuizManagementIndexTest extends TestCase
         ])->assertForbidden();
     }
 
+    public function test_rejection_requires_and_stores_the_edited_moderation_reason(): void
+    {
+        $category = $this->makeCategory();
+        $admin = User::factory()->create(['role' => 'useradmin']);
+        $creator = User::factory()->create(['role' => 'user']);
+        $quiz = $this->makeQuiz($creator, $category, 'Elutasítandó kvíz', 'pending');
+
+        $this->actingAs($admin)->post(route('admin.quizzes.reject', $quiz), [
+            'moderation_reason' => '   ',
+        ])->assertSessionHasErrors('moderation_reason');
+
+        $this->assertSame('pending', $quiz->fresh()->status);
+
+        $this->actingAs($admin)->post(route('admin.quizzes.reject', $quiz), [
+            'moderation_reason' => '  A leírás még nem elég részletes.  ',
+        ])->assertSessionHasNoErrors();
+
+        $quiz->refresh();
+        $this->assertSame('rejected', $quiz->status);
+        $this->assertFalse($quiz->is_public);
+        $this->assertSame('A leírás még nem elég részletes.', $quiz->rejection_reason);
+    }
+
+    public function test_withdrawing_publication_requires_a_reason_visible_to_the_owner(): void
+    {
+        $category = $this->makeCategory();
+        $admin = User::factory()->create(['role' => 'hostadmin']);
+        $creator = User::factory()->create(['role' => 'user']);
+        $quiz = $this->makeQuiz($creator, $category, 'Visszavont kvíz', 'approved');
+        $quiz->update(['is_public' => true]);
+
+        $this->actingAs($admin)->patch(route('admin.quizzes.bulk-update'), [
+            'quiz_ids' => [$quiz->id],
+            'bulk_action' => 'make_private',
+        ])->assertSessionHasErrors('moderation_reason');
+
+        $this->assertTrue($quiz->fresh()->is_public);
+
+        $this->actingAs($admin)->patch(route('admin.quizzes.bulk-update'), [
+            'quiz_ids' => [$quiz->id],
+            'bulk_action' => 'make_private',
+            'moderation_reason' => 'További tartalmi ellenőrzés szükséges.',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertFalse($quiz->fresh()->is_public);
+
+        $this->actingAs($creator)
+            ->get(route('my-quizzes.show', $quiz))
+            ->assertOk()
+            ->assertSee('További tartalmi ellenőrzés szükséges.');
+    }
+
+    public function test_approval_clears_an_earlier_moderation_reason(): void
+    {
+        $category = $this->makeCategory();
+        $admin = User::factory()->create(['role' => 'useradmin']);
+        $quiz = $this->makeQuiz($admin, $category, 'Újra jóváhagyott kvíz', 'rejected');
+        $quiz->update(['rejection_reason' => 'Korábbi indok']);
+
+        $this->actingAs($admin)
+            ->post(route('admin.quizzes.approve', $quiz))
+            ->assertSessionHasNoErrors();
+
+        $quiz->refresh();
+        $this->assertSame('approved', $quiz->status);
+        $this->assertNull($quiz->rejection_reason);
+    }
+
     public function test_admin_quiz_search_returns_limited_matching_results(): void
     {
         $category = $this->makeCategory();

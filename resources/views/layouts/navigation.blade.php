@@ -57,6 +57,17 @@
 
             <div style="display: flex; align-items: center; gap: 1rem;">
                 @auth
+                    @php($unreadNotificationCount = auth()->user()->unreadNotifications()->count())
+                    <a href="{{ route('notifications.index') }}"
+                       class="nav-notification-bell {{ request()->routeIs('notifications.*') ? 'active' : '' }}"
+                       aria-label="Értesítések{{ $unreadNotificationCount ? ', '.$unreadNotificationCount.' olvasatlan' : '' }}"
+                       title="Értesítések">
+                        <span aria-hidden="true">🔔</span>
+                        @if($unreadNotificationCount > 0)
+                            <span class="nav-notification-count">{{ $unreadNotificationCount > 99 ? '99+' : $unreadNotificationCount }}</span>
+                        @endif
+                    </a>
+
                     <div class="nav-badge-tokens">
                         <span>{{ number_format(auth()->user()->points ?? 0) }} PT</span>
                     </div>
