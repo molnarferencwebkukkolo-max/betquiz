@@ -8,12 +8,135 @@ use App\Models\Question;
 use App\Models\Quiz;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class QuizManagementIndexTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_authenticated_user_can_open_quiz_creation_form(): void
+    {
+        $this->makeCategory();
+        $user = User::factory()->create(['role' => 'user']);
+
+        $this->actingAs($user)
+            ->get(route('my-quizzes.create'))
+            ->assertOk()
+            ->assertSee('action="'.route('my-quizzes.store').'"', false);
+    }
+
+    public function test_regular_user_pays_the_quiz_creation_cost(): void
+    {
+        $category = $this->makeCategory();
+        $user = User::factory()->create(['role' => 'user', 'points' => 60000]);
+
+        $this->actingAs($user)
+            ->post(route('my-quizzes.store'), $this->quizCreationData($category))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(10000, $user->fresh()->points);
+        $this->assertDatabaseHas('quizzes', ['creator_id' => $user->id]);
+    }
+
+    public function test_useradmin_and_hostadmin_create_quizzes_for_free(): void
+    {
+        $category = $this->makeCategory();
+
+        foreach (['useradmin', 'hostadmin'] as $role) {
+            $admin = User::factory()->create(['role' => $role, 'points' => 1234]);
+
+            $this->actingAs($admin)
+                ->post(route('my-quizzes.store'), $this->quizCreationData($category, $role))
+                ->assertSessionHasNoErrors();
+
+            $this->assertSame(1234, $admin->fresh()->points);
+            $this->assertDatabaseHas('quizzes', [
+                'creator_id' => $admin->id,
+                'status' => 'approved',
+            ]);
+        }
+    }
+
+    public function test_admin_creation_form_skips_the_review_sample_questions(): void
+    {
+        $this->makeCategory();
+        $admin = User::factory()->create(['role' => 'hostadmin']);
+
+        $this->actingAs($admin)
+            ->get(route('my-quizzes.create'))
+            ->assertOk()
+            ->assertSee('tetszőleges számú kérdést')
+            ->assertDontSee('Minta Kérdések Feltöltése')
+            ->assertDontSee('benyújtod a kvízt bírálatra');
+    }
+
+    public function test_quiz_edit_form_keeps_its_current_inactive_category_available(): void
+    {
+        $category = $this->makeCategory();
+        $user = User::factory()->create(['role' => 'user']);
+        $quiz = $this->makeQuiz($user, $category, 'Inaktív kategóriás kvíz');
+        $category->update(['is_active' => false]);
+
+        $this->actingAs($user)
+            ->get(route('my-quizzes.edit', $quiz))
+            ->assertOk()
+            ->assertSee('value="'.$category->id.'" selected', false);
+    }
+
+    public function test_admin_can_import_questions_from_csv_into_an_approved_quiz(): void
+    {
+        $category = $this->makeCategory();
+        $admin = User::factory()->create(['role' => 'hostadmin']);
+        $quiz = $this->makeQuiz($admin, $category, 'CSV import kvíz', 'approved');
+        $csv = "question,option_1,option_2,option_3,option_4,correct_index\n"
+            ."Mennyi kettő meg kettő?,Négy,Három,Öt,Hat,1\n";
+        $file = UploadedFile::fake()->createWithContent('questions.csv', $csv);
+
+        $this->actingAs($admin)
+            ->post(route('my-quizzes.questions.import', $quiz), ['csv_file' => $file])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success');
+
+        $question = Question::query()->where('quiz_id', $quiz->id)->firstOrFail();
+        $this->assertSame('Mennyi kettő meg kettő?', $question->question_text['hu']);
+        $this->assertCount(4, $question->options);
+        $this->assertSame(1, $question->options()->where('is_correct', true)->count());
+    }
+
+    public function test_admin_can_import_the_semicolon_csv_format_shown_on_the_page(): void
+    {
+        $category = $this->makeCategory();
+        $admin = User::factory()->create(['role' => 'useradmin']);
+        $quiz = $this->makeQuiz($admin, $category, 'Excel CSV import', 'approved');
+        $csv = "Kérdés;Helyes válasz;Hibás1;Hibás2;Hibás3;Nehézség\n"
+            ."Magyarország fővárosa?;Budapest;Bécs;Prága;Pozsony;hard\n";
+
+        $this->actingAs($admin)
+            ->post(route('my-quizzes.questions.import', $quiz), [
+                'csv_file' => UploadedFile::fake()->createWithContent('excel.csv', $csv),
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success', 'Sikeresen importálva 1 db kérdés!');
+
+        $question = Question::query()->where('quiz_id', $quiz->id)->firstOrFail();
+        $this->assertSame('hard', $question->difficulty);
+        $this->assertSame('Budapest', $question->options()->where('is_correct', true)->firstOrFail()->translated_text);
+    }
+
+    public function test_regular_user_cannot_create_quiz_without_enough_points(): void
+    {
+        $category = $this->makeCategory();
+        $user = User::factory()->create(['role' => 'user', 'points' => 49999]);
+
+        $this->actingAs($user)
+            ->post(route('my-quizzes.store'), $this->quizCreationData($category))
+            ->assertSessionHasErrors('error');
+
+        $this->assertSame(49999, $user->fresh()->points);
+        $this->assertDatabaseMissing('quizzes', ['creator_id' => $user->id]);
+    }
 
     public function test_regular_user_can_search_and_only_sees_own_quizzes(): void
     {
@@ -272,6 +395,15 @@ class QuizManagementIndexTest extends TestCase
             'slug' => 'altalanos-'.uniqid(),
             'is_active' => true,
         ]);
+    }
+
+    private function quizCreationData(Category $category, string $suffix = 'user'): array
+    {
+        return [
+            'title' => 'Létrehozási teszt '.$suffix,
+            'description' => 'Tesztleírás',
+            'category_id' => $category->id,
+        ];
     }
 
     private function makeQuiz(

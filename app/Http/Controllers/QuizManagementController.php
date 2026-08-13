@@ -18,6 +18,8 @@ use Illuminate\Validation\ValidationException;
 
 class QuizManagementController extends Controller
 {
+    private const QUIZ_CREATION_COST = 50000;
+
     /**
      * Kvízek listázása (KVÍZEIM / Saját kvízek + Admin bíráló lista)
      */
@@ -250,8 +252,11 @@ class QuizManagementController extends Controller
     public function create()
     {
         $categories = Category::query()->where('is_active', true)->get();
+        $user = Auth::user();
+        $isAdmin = $user->isUseradmin() || $user->isHostadmin();
+        $creationCost = $isAdmin ? 0 : self::QUIZ_CREATION_COST;
 
-        return view('creator.create', compact('categories'));
+        return view('creator.create', compact('categories', 'creationCost', 'isAdmin'));
     }
 
     /**
@@ -268,18 +273,41 @@ class QuizManagementController extends Controller
             ],
         ]);
 
-        $quiz = Quiz::create([
-            'title' => $validated['title'],
-            'description' => $validated['description'],
-            'seo_title' => $validated['title'],
-            'seo_description' => Str::limit(strip_tags((string) $validated['description']), 160, ''),
-            'category_id' => $validated['category_id'],
-            'creator_id' => auth()->id(),
-            'status' => 'pending', // Alapértelmezetten adminisztrátori bírálatra vár!
-        ]);
+        $quiz = DB::transaction(function () use ($validated) {
+            // A zárolás megakadályozza, hogy két egyidejű kérés ugyanazt a
+            // pontegyenleget felhasználva indítson két fizetős kvízt.
+            $user = User::query()->lockForUpdate()->findOrFail(auth()->id());
+            $isAdmin = $user->isUseradmin() || $user->isHostadmin();
+
+            if (! $isAdmin && $user->points < self::QUIZ_CREATION_COST) {
+                throw ValidationException::withMessages([
+                    'error' => 'Nincs elég pontod a kvíz indításához. A szükséges összeg 50 000 PT.',
+                ]);
+            }
+
+            if (! $isAdmin) {
+                $user->decrement('points', self::QUIZ_CREATION_COST);
+            }
+
+            return Quiz::create([
+                'title' => $validated['title'],
+                'description' => $validated['description'],
+                'seo_title' => $validated['title'],
+                'seo_description' => Str::limit(strip_tags((string) $validated['description']), 160, ''),
+                'category_id' => $validated['category_id'],
+                'creator_id' => $user->id,
+                // Az adminisztrátor saját tartalma nem igényel egy második
+                // adminisztrátori jóváhagyást, ezért azonnal szerkeszthető.
+                'status' => $isAdmin ? 'approved' : 'pending',
+            ]);
+        });
+
+        $successMessage = $quiz->status === 'approved'
+            ? 'Kvíz sikeresen létrehozva! Most már egyenként vagy CSV-ből is feltöltheted a kérdéseket.'
+            : 'Kvíz koncepció sikeresen benyújtva! Adminisztrátori jóváhagyás után kezdheted meg a további kérdések feltöltését.';
 
         return redirect()->route('my-quizzes.show', $quiz)
-            ->with('success', 'Kvíz koncepció sikeresen benyújtva! Adminisztrátori jóváhagyás után kezdheted meg a további kérdések feltöltését.');
+            ->with('success', $successMessage);
     }
 
     /**
@@ -320,7 +348,7 @@ class QuizManagementController extends Controller
         // marad, de másik inaktív kategóriát nem lehet kiválasztani.
         $categories = Category::query()
             ->where('is_active', true)
-            ->orWhereKey($quiz->category_id)
+            ->orWhere('id', $quiz->category_id)
             ->get();
         $allTags = Tag::query()->orderBy('name')->pluck('name');
         $quiz->load('tags');

@@ -107,10 +107,10 @@ class QuestionController extends Controller
 
         // 2. SZIGORÚ FÁJL- ÉS MIME-TÍPUS VALIDÁCIÓ (csv, txt, max 2MB)
         $request->validate([
-            'csv_file' => 'required|file|mimes:csv,txt|mimetype:text/csv,text/plain|max:2048',
+            'csv_file' => 'required|file|mimes:csv,txt|mimetypes:text/csv,text/plain|max:2048',
         ], [
             'csv_file.mimes' => 'Kizárólag .csv vagy .txt kiterjesztésű fájl tölthető fel!',
-            'csv_file.mimetype' => 'A feltöltött fájl formátuma érvénytelen.',
+            'csv_file.mimetypes' => 'A feltöltött fájl formátuma érvénytelen.',
             'csv_file.max' => 'A fájl mérete nem haladhatja meg a 2 MB-ot.',
         ]);
 
@@ -132,11 +132,15 @@ class QuestionController extends Controller
         $rowsToInsert = [];
         $rowNumber = 0;
 
-        // Fejléc beolvasása és átugrása
-        $header = fgetcsv($handle, 1000, ',');
+        // A magyar Excel jellemzően pontosvesszős CSV-t készít, más
+        // programok pedig vesszőset. A fejlécből automatikusan felismerjük.
+        $firstLine = fgets($handle);
+        $delimiter = substr_count((string) $firstLine, ';') > substr_count((string) $firstLine, ',') ? ';' : ',';
+        rewind($handle);
+        fgetcsv($handle, 0, $delimiter);
 
         // 4. SORONKÉNTI SZIGORÚ ELLENŐRZÉS
-        while (($data = fgetcsv($handle, 1000, ',')) !== false) {
+        while (($data = fgetcsv($handle, 0, $delimiter)) !== false) {
             $rowNumber++;
 
             // ÜRES SOROK KISZŰRÉSE
@@ -155,7 +159,10 @@ class QuestionController extends Controller
             $opt2 = trim($data[2]);
             $opt3 = trim($data[3] ?? '');
             $opt4 = trim($data[4] ?? '');
-            $correctIndex = trim($data[5]);
+            $lastColumn = strtolower(trim($data[5]));
+            $usesDisplayedFormat = in_array($lastColumn, ['easy', 'medium', 'hard'], true);
+            $correctIndex = $usesDisplayedFormat ? 1 : $lastColumn;
+            $difficulty = $usesDisplayedFormat ? $lastColumn : 'medium';
 
             // STRUKTURÁLIS ÉS MÉRATKISEBBÍTTŐ VALIDÁCIÓ
             $validator = Validator::make([
@@ -211,6 +218,7 @@ class QuestionController extends Controller
 
             $rowsToInsert[] = [
                 'question_text' => $questionText,
+                'difficulty' => $difficulty,
                 'options' => $optionsData,
             ];
         }
@@ -234,13 +242,14 @@ class QuestionController extends Controller
                         'quiz_id' => $quiz->id,
                         // A kategória legacy mező, mindig a kvízből öröklődik.
                         'category_id' => $quiz->category_id,
+                        'difficulty' => $item['difficulty'],
                         'question_text' => ['hu' => $item['question_text']],
                     ]);
 
                     foreach ($item['options'] as $opt) {
                         Option::create([
                             'question_id' => $question->id,
-                            'option_text' => $opt['text'],
+                            'option_text' => ['hu' => $opt['text']],
                             'is_correct' => $opt['is_correct'],
                         ]);
                     }

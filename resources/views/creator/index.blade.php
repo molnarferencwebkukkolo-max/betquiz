@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kvízek - KwizzGo</title>
-    <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
-<body class="bg-gray-100 min-h-screen pb-12">
+<body class="my-quizzes-page min-h-screen pb-12">
 
 @include('layouts.navigation')
 
@@ -19,9 +19,10 @@
     ];
 @endphp
 
-<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<main class="my-quizzes-shell max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
+            <span class="my-quizzes-eyebrow">Alkotói műhely</span>
             <h1 class="text-3xl font-extrabold text-gray-800">
                 {{ $isAdmin ? 'Összes kvíz (Admin)' : 'Saját kvízeim' }}
             </h1>
@@ -50,7 +51,7 @@
         </div>
     @endif
 
-    <section class="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 mb-6">
+    <section class="my-quizzes-filter bg-white rounded-3xl shadow-sm border border-gray-100 p-5 mb-6">
         <form action="{{ route('my-quizzes.index') }}" method="GET"
               class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 items-end">
             @if($isAdmin)
@@ -277,7 +278,7 @@
                     [$statusLabel, $statusClasses] = $statusLabels[$quiz->status] ?? [ucfirst($quiz->status), 'bg-gray-100 text-gray-700'];
                 @endphp
 
-                <article class="bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden flex flex-col hover:shadow-xl transition">
+                <article class="my-quiz-card bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden flex flex-col hover:shadow-xl transition">
                     @if($quiz->cover_image)
                         <div class="h-36 overflow-hidden bg-gray-100">
                             <img src="{{ asset('storage/'.$quiz->cover_image) }}" alt="{{ $quiz->title }}"

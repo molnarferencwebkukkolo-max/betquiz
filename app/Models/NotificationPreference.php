@@ -13,7 +13,15 @@ class NotificationPreference extends Model
         'published' => 'Kvíz publikálása',
         'publication_withdrawn' => 'Jóváhagyás vagy publikálás visszavonása',
         'weekly_report' => 'Heti kvízteljesítmény-jelentés',
+        'marketing' => 'Reklám- és marketingüzenetek',
     ];
+
+    public const EMAIL_ONLY_EVENTS = ['marketing'];
+
+    public static function supportsChannel(string $event, string $channel): bool
+    {
+        return ! ($channel === 'database' && in_array($event, self::EMAIL_ONLY_EVENTS, true));
+    }
 
     protected $fillable = [
         'event',

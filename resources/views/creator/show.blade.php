@@ -5,18 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $quiz->title }} - KwizzGo</title>
     <!-- Központi Stíluslap -->
-    <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
-<body class="bg-gray-100 min-h-screen pb-12">
+<body class="quiz-workspace-page min-h-screen pb-12">
 
 @include('layouts.navigation')
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="quiz-workspace-shell max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
     <!-- Vissza gomb -->
     <div class="mb-6">
-        <a href="{{ route('quizzes.index') }}" class="text-sm font-bold text-gray-500 hover:text-gray-800 transition">
+        <a href="{{ route('my-quizzes.index') }}" class="workspace-back text-sm font-bold text-gray-500 hover:text-gray-800 transition">
             ← Vissza a Kvízekhez
         </a>
     </div>
@@ -24,6 +24,20 @@
     @if(session('success'))
         <div class="mb-6 p-4 bg-green-100 border border-green-300 text-green-800 rounded-2xl font-bold">
             {{ session('success') }}
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="mb-6 p-4 bg-red-100 border border-red-300 text-red-800 rounded-2xl font-bold">
+            {{ session('error') }}
+        </div>
+    @endif
+
+    @if(session('import_errors'))
+        <div class="mb-6 p-4 bg-red-50 border border-red-200 text-red-800 rounded-2xl space-y-1">
+            @foreach(session('import_errors') as $importError)
+                <p>• {{ $importError }}</p>
+            @endforeach
         </div>
     @endif
 
@@ -46,7 +60,7 @@
     @endphp
 
         <!-- Kvíz Fejléc Kártya -->
-    <div class="bg-white rounded-3xl shadow-md border border-gray-100 p-8 mb-8 overflow-hidden">
+    <div class="workspace-hero-card bg-white rounded-3xl shadow-md border border-gray-100 p-8 mb-8 overflow-hidden">
 
         <!-- Ha van fejléckép, megjelenítjük borítóként -->
         @if($quiz->cover_image)
@@ -173,7 +187,7 @@
         </div>
 
         <!-- 📊 CSV IMPORTÁLÓ BLOKK -->
-        <div class="bg-indigo-50/60 rounded-2xl p-5 border border-indigo-100">
+        <div class="workspace-import bg-indigo-50/60 rounded-2xl p-5 border border-indigo-100">
             <h3 class="font-extrabold text-indigo-900 text-sm mb-2 flex items-center gap-2">
                 📂 Tömeges Kérdés Importálás CSV-ből
             </h3>
@@ -193,7 +207,7 @@
     </div>
 
     <!-- Kérdések Listája Statisztikával -->
-    <div class="bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden">
+    <div class="workspace-questions bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden">
         <div class="p-6 border-b border-gray-100 flex justify-between items-center">
             <h2 class="text-xl font-bold text-gray-800">❓ A Kvízben szereplő kérdések ({{ $qCount }} db)</h2>
         </div>

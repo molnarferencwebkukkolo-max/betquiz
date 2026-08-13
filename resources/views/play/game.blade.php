@@ -1,11 +1,14 @@
 @extends('layouts.game')
 
+@section('body_class', 'kwizzgo-game-page')
+@section('page_wrapper_class', 'kwizzgo-game-wrapper')
+
 @section('content')
-    <div class="py-8" x-data="{
+    <div class="py-8 game-screen" x-data="{
         timeLeft: {{ $game['time_limit'] }},
         timer: null,
         startTimer() {
-            @if(empty($game['awaiting_decision']) && empty($game['awaiting_dice']) && empty($game['awaiting_time_travel']))
+            @if(empty($game['awaiting_decision']) && empty($game['awaiting_dice']) && empty($game['awaiting_time_travel']) && empty($game['helper_overlay']) && empty($game['dice_result']))
                 this.timer = setInterval(() => {
                     if (this.timeLeft > 0) {
                         this.timeLeft--;
@@ -27,7 +30,7 @@
         <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
 
             {{-- 🎯 DYNAMIC STATS BAR --}}
-            <div class="bg-white rounded-2xl shadow-lg p-5 mb-6 border border-gray-100">
+            <div class="game-stats-bar">
                 @if($game['game_mode'] === 'normal')
                     {{-- 🟢 NORMÁL MÓD STATS BAR --}}
                     <div class="grid grid-cols-2 md:grid-cols-5 gap-4 items-center text-center md:text-left">
@@ -225,6 +228,30 @@
                 </div>
 
                 {{-- 3. ESET: IDŐLEJÁRÁS UTÁN ➔ DOKI IDŐUGRÁSA --}}
+            @elseif(!empty($game['dice_result']))
+                @php
+                    $diceResult = $game['dice_result'];
+                    $diceCashout = (int) round(($game['current_pot'] ?? 0) * 0.20);
+                @endphp
+                <section class="dice-result-stage {{ $diceResult['success'] ? 'success' : 'failure' }}">
+                    <span class="dice-result-kicker">A dobás eredménye</span>
+                    <div class="dice-result-cube">{{ $diceResult['roll'] ?? '×' }}</div>
+                    @if($diceResult['success'])
+                        <h2>Sikerült! Hatost dobtál!</h2><p>A kocka megmentett, folytathatod a játékot.</p>
+                        <div class="dice-result-actions">
+                            @if(($game['game_mode'] ?? 'normal') === 'odds')
+                                <form action="{{ route('quiz.cashout', $quiz) }}" method="POST">@csrf<button class="dice-secondary-action">Kiszállok {{ $diceCashout }} PT-ért</button></form>
+                            @else
+                                <form action="{{ route('quiz.roll_dice.finish', $quiz) }}" method="POST">@csrf<button class="dice-secondary-action">Vissza a kvízekhez</button></form>
+                            @endif
+                            <form action="{{ route('quiz.next_question', $quiz) }}" method="POST">@csrf<button class="dice-primary-action">Következő kérdés →</button></form>
+                        </div>
+                    @else
+                        <h2>{{ ($diceResult['reason'] ?? null) === 'no_points' ? 'Nincs elég zsetonod' : 'Sajnos rosszat dobtál' }}</h2>
+                        <p>{{ ($diceResult['reason'] ?? null) === 'no_points' ? 'A fizetős gurításhoz 100 PT szükséges.' : $diceResult['roll'].' lett a dobásod. A játék most véget ért.' }}</p>
+                        <div class="dice-result-actions single"><form action="{{ route('quiz.roll_dice.finish', $quiz) }}" method="POST">@csrf<button class="dice-primary-action">Vissza a kvízekhez</button></form></div>
+                    @endif
+                </section>
             @elseif(!empty($game['awaiting_time_travel']))
                 @php
                     $freeTravelsUsed = auth()->user()->lifetime_free_time_travels_used ?? 0;
@@ -323,13 +350,101 @@
                 </div>
 
                 {{-- 4. ESET: AKTÍV KÉRDÉS KÁRTYA --}}
+            @elseif(!empty($game['helper_overlay']))
+                @php
+                    $overlay = $game['helper_overlay'];
+                @endphp
+                <div class="helper-game-stage {{ $overlay === 'poker' ? 'poker-stage' : 'blackjack-stage' }}">
+                    @if($overlay === 'poker')
+                        @php
+                            $poker = $game['helper_results']['poker'];
+                        @endphp
+                        <span class="helper-stage-kicker">KwizzGo segítség</span>
+                        <h2 class="text-3xl font-black mb-2">♠ KwizzGo Poker</h2>
+                        <p class="text-violet-200 mb-6">A szabályos pókerkéz dönti el a kérdés sorsát.</p>
+                        @foreach(['dealer' => 'Gép lapjai', 'player' => 'A te lapjaid'] as $side => $title)
+                            <h3 class="font-bold mt-5 mb-2">{{ $title }} – {{ $poker[$side.'_label'] }}</h3>
+                            <div class="card-hand">
+                                @foreach($poker[$side] as $cardIndex => $card)
+                                    <span class="playing-card deal-card {{ in_array($card['suit'], ['♥','♦']) ? 'red' : '' }}" style="--deal-index: {{ ($side === 'dealer' ? 0 : 5) + $cardIndex }}">
+                                        {{ $card['rank'] === 14 ? 'A' : ($card['rank'] === 13 ? 'K' : ($card['rank'] === 12 ? 'Q' : ($card['rank'] === 11 ? 'J' : $card['rank']))) }}{{ $card['suit'] }}
+                                    </span>
+                                @endforeach
+                            </div>
+                        @endforeach
+                        <p class="text-xl font-black mt-6 {{ $poker['player_won'] ? 'text-emerald-300' : 'text-rose-300' }}">{{ $poker['player_won'] ? 'Nyertél – helyes válasz!' : 'A gép nyert – helytelen válasz.' }}</p>
+                    @else
+                        @php
+                            $blackjack = $game['blackjack'];
+                        @endphp
+                        @php
+                            $cardLabel = function (array $card): string {
+                                $rank = match ($card['rank']) {
+                                    14 => 'A',
+                                    13 => 'K',
+                                    12 => 'Q',
+                                    11 => 'J',
+                                    default => (string) $card['rank'],
+                                };
+
+                                return $rank.$card['suit'];
+                            };
+                        @endphp
+                        <span class="helper-stage-kicker">KwizzGo segítség</span>
+                        <h2 class="text-3xl font-black mb-2">21 – Blackjack</h2>
+                        <p class="text-violet-200 mb-5">Az óra áll. Döntetlennél te nyersz.</p>
+                        <div class="blackjack-score-label"><span>Gép keze</span><strong>{{ $blackjack['finished'] ? $blackjack['dealer_value'] : '?' }}</strong></div>
+                        <div class="card-hand">
+                            <span class="playing-card">{{ $cardLabel($blackjack['dealer'][0]) }}</span>
+                            <span class="playing-card">{{ $blackjack['finished'] ? $cardLabel($blackjack['dealer'][1]) : '🂠' }}</span>
+                            @if($blackjack['finished'])
+                                @foreach(array_slice($blackjack['dealer'], 2) as $card)
+                                    <span class="playing-card">{{ $cardLabel($card) }}</span>
+                                @endforeach
+                            @endif
+                        </div>
+                        <div class="blackjack-score-label player"><span>A kezed értéke</span><strong>{{ $blackjack['player_value'] }}</strong></div>
+                        <div class="card-hand">
+                            @foreach($blackjack['player'] as $card)
+                                <span class="playing-card">{{ $cardLabel($card) }}</span>
+                            @endforeach
+                        </div>
+                        @if(!$blackjack['finished'])
+                            <div class="blackjack-actions mt-7">
+                                <form action="{{ route('quiz.helpers.blackjack.action', $quiz) }}" method="POST">
+                                    @csrf
+                                    <input type="hidden" name="action" value="hit">
+                                    <button class="blackjack-action blackjack-hit">Lap kérek</button>
+                                </form>
+                                <form action="{{ route('quiz.helpers.blackjack.action', $quiz) }}" method="POST">
+                                    @csrf
+                                    <input type="hidden" name="action" value="stand">
+                                    <button class="blackjack-action blackjack-stand">Megállok</button>
+                                </form>
+                                <form action="{{ route('quiz.helpers.blackjack.abandon', $quiz) }}" method="POST" onsubmit="return confirm('Biztosan kilépsz? Ezzel elveszíted az aktuális kérdést.');">
+                                    @csrf
+                                    <button class="blackjack-action blackjack-abandon">Kilépek – elveszítem</button>
+                                </form>
+                            </div>
+                            <p class="blackjack-abandon-note">A megkezdett 21-ből való kilépés hibás válasznak számít.</p>
+                        @else
+                            <p class="text-xl font-black mt-6 {{ $blackjack['player_won'] ? 'text-emerald-300' : 'text-rose-300' }}">{{ $blackjack['player_won'] ? 'Nyertél – helyes válasz!' : 'Vesztettél – helytelen válasz.' }}</p>
+                        @endif
+                    @endif
+                    @if($overlay === 'poker' || !empty($blackjack['finished']))
+                        <form action="{{ route('quiz.helpers.resolve', $quiz) }}" method="POST" class="mt-6">
+                            @csrf
+                            <button class="px-8 py-3 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-xl font-black">Eredmény folytatása →</button>
+                        </form>
+                    @endif
+                </div>
             @else
-                <div class="bg-white overflow-hidden shadow-xl rounded-2xl p-8 mb-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <span class="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full uppercase">
+                <div class="question-stage">
+                    <div class="question-meta-row">
+                        <span class="difficulty-badge">
                             Nehézség: {{ $currentQuestion->difficulty ?? 'Normál' }}
                         </span>
-                        <span class="text-xs text-gray-400">ID: #{{ $currentQuestion->id }}</span>
+                        <span class="question-counter">Kérdés #{{ $game['current_step'] }} / {{ $game['target_count'] }}</span>
                     </div>
 
                     @php
@@ -339,20 +454,54 @@
                         }
                     @endphp
 
-                    <h2 class="text-2xl font-extrabold text-gray-800 mb-8 leading-snug">
+                    <h2 class="question-title">
                         {{ $questionText }}
                     </h2>
+
+                    @php
+                        $answersList = $currentQuestion->answers ?? $currentQuestion->options ?? [];
+                    @endphp
+
+                    <div class="helper-section-heading"><span>✨</span><div><strong>Segítségek</strong><small>3-3 ingyenes használat, utána 100 PT</small></div></div>
+                    <div class="quiz-helper-toolbar">
+                        @php
+                            $helperIcons = ['fifty_fifty' => '½', 'poker' => '♠', 'blackjack' => '21', 'audience' => '▥', 'bear' => '🐻'];
+                        @endphp
+                        @foreach(['fifty_fifty'=>'50:50','poker'=>'♠ Poker','blackjack'=>'21','audience'=>'Közönség','bear'=>'KwizzGoBear'] as $helper => $label)
+                            <form action="{{ $helper === 'blackjack' ? route('quiz.helpers.blackjack.start',$quiz) : route('quiz.helpers.use',[$quiz,$helper]) }}" method="POST">@csrf<button type="submit"><span>{{ $helperIcons[$helper] }}</span><strong>{{ $label }}</strong><small>{{ $helperBalances[$helper]['remaining_free'] > 0 ? $helperBalances[$helper]['remaining_free'].' ingyen' : '100 PT' }}</small></button></form>
+                        @endforeach
+                    </div>
+
+                    @if(!empty($game['helper_results']['audience']))
+                        <div class="audience-result">
+                            <strong>Közönségszavazás</strong>
+                            @foreach($answersList as $index => $answer)
+                                @php
+                                    $answerId = is_object($answer) ? $answer->id : $answer['id'];
+                                @endphp
+                                <span>{{ chr(65 + $index) }}: {{ $game['helper_results']['audience'][$answerId] ?? 0 }}%</span>
+                            @endforeach
+                        </div>
+                    @endif
+                    @if(!empty($game['helper_results']['bear']))
+                        <div class="bear-result">
+                            🐻 KwizzGoBear szerint a helyes válasz:
+                            @php
+                                $bearAnswerIndex = collect($answersList)->search(function ($answer) use ($game): bool {
+                                    $answerId = is_object($answer) ? $answer->id : $answer['id'];
+                                    return (int) $answerId === (int) $game['helper_results']['bear'];
+                                });
+                            @endphp
+                            <strong>{{ chr(65 + $bearAnswerIndex) }}</strong>
+                        </div>
+                    @endif
 
                     {{-- VÁLASZ LEHETŐSÉGEK FORM --}}
                     <form id="game-form" action="{{ route('quiz.submit_answer', $quiz) }}" method="POST">
                         @csrf
                         <input type="hidden" name="question_id" value="{{ $currentQuestion->id }}">
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                            @php
-                                $answersList = $currentQuestion->answers ?? $currentQuestion->options ?? [];
-                            @endphp
-
+                        <div class="answer-grid">
                             @foreach($answersList as $index => $answer)
                                 @php
                                     $answerText = is_object($answer) ? $answer->option_text : ($answer['option_text'] ?? '');
@@ -360,17 +509,17 @@
                                         $answerText = $answerText['hu'] ?? $answerText['en'] ?? reset($answerText);
                                     }
                                 @endphp
-                                <label class="p-4 border-2 border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 rounded-2xl cursor-pointer transition flex items-center gap-3 group">
-                                    <input type="radio" name="selected_option" value="{{ is_object($answer) ? $answer->id : ($answer['id'] ?? $index) }}" class="w-5 h-5 text-indigo-600 focus:ring-indigo-500 border-gray-300" required>
-                                    <span class="font-black text-indigo-600 group-hover:text-indigo-800">{{ chr(65 + $index) }}:</span>
-                                    <span class="text-gray-700 font-semibold group-hover:text-gray-900">
+                                <label class="answer-option {{ in_array((int)(is_object($answer)?$answer->id:$answer['id']), $game['helper_results']['fifty_fifty'] ?? [], true) ? 'helper-eliminated' : '' }}">
+                                    <input type="radio" name="selected_option" value="{{ is_object($answer) ? $answer->id : ($answer['id'] ?? $index) }}" required>
+                                    <span class="answer-letter">{{ chr(65 + $index) }}</span>
+                                    <span class="answer-copy">
                                         {{ $answerText }}
                                     </span>
                                 </label>
                             @endforeach
                         </div>
 
-                        <button type="submit" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-lg rounded-2xl shadow-lg transition">
+                        <button type="submit" class="answer-submit-button">
                             Válasz beküldése ➔
                         </button>
                     </form>

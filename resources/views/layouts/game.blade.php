@@ -20,8 +20,8 @@
     <!-- 🎯 ITT A CUSTOM CSS-ED A PUBLIC MAPPÁBÓL: -->
     <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
-<body class="font-sans antialiased bg-gray-100 text-gray-900">
-<div class="min-h-screen bg-gray-100">
+<body class="font-sans antialiased @yield('body_class', 'bg-gray-100 text-gray-900')">
+<div class="min-h-screen @yield('page_wrapper_class', 'bg-gray-100')">
     @if(view()->exists('layouts.navigation'))
         @include('layouts.navigation')
     @endif

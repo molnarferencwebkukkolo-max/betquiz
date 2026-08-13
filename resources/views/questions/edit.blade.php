@@ -7,9 +7,11 @@
     <!-- Központi Stíluslap -->
     <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
-<body style="padding: 1.5rem;">
+<body class="editor-page question-editor-page">
 
-<div class="q-edit-container">
+@include('layouts.navigation')
+
+<div class="q-edit-container editor-shell">
 
     <div class="q-header" style="padding-bottom: 0.75rem; border-bottom: 1px solid #e5e7eb;">
         <h1 style="font-size: 1.5rem; font-weight: 800; color: #1f2937; margin: 0;">✏️ Kérdés Szerkesztése</h1>

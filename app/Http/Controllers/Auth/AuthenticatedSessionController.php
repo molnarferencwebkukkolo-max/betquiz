@@ -41,7 +41,13 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
-        if (! Auth::attempt([...$credentials, 'is_active' => true], $request->boolean('remember'))) {
+        if ($user && $user->is_banned) {
+            throw ValidationException::withMessages([
+                'email' => 'Ez a felhasználói fiók tiltva van.',
+            ]);
+        }
+
+        if (! Auth::attempt([...$credentials, 'is_active' => true, 'is_banned' => false], $request->boolean('remember'))) {
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),
             ]);

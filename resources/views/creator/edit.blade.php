@@ -4,21 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kvíz szerkesztése - KwizzGo</title>
-    <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
-<body class="bg-gray-100 min-h-screen pb-12">
+<body class="editor-page min-h-screen pb-12">
 
 @include('layouts.navigation')
 
-<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="editor-shell max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="mb-6">
         <a href="{{ route('my-quizzes.show', $quiz) }}" class="text-sm font-bold text-gray-500 hover:text-gray-800 transition">
             ← Vissza a kvízhez
         </a>
     </div>
 
-    <div class="bg-white rounded-3xl shadow-md border border-gray-100 p-8">
+    <div class="editor-card bg-white rounded-3xl shadow-md border border-gray-100 p-8">
         <h1 class="text-2xl font-extrabold text-gray-800 mb-6">Kvíz alapadatainak szerkesztése</h1>
 
         @if($errors->any())

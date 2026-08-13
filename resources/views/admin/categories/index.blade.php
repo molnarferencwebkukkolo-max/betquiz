@@ -39,12 +39,17 @@
     <section class="mb-8 rounded-3xl bg-white p-6 shadow-sm">
         <h2 class="mb-5 text-xl font-extrabold text-gray-800">Új kategória</h2>
         <form method="POST" action="{{ route('admin.categories.store') }}"
-              class="grid grid-cols-1 items-end gap-4 md:grid-cols-4">
+              class="grid grid-cols-1 items-end gap-4 md:grid-cols-5">
             @csrf
             <label class="block">
                 <span class="mb-2 block text-xs font-extrabold uppercase text-gray-500">Magyar név *</span>
                 <input name="name[hu]" value="{{ old('name.hu') }}" required maxlength="255"
                        class="w-full rounded-xl border border-gray-300 px-4 py-3" placeholder="Például: Történelem">
+            </label>
+            <label class="block">
+                <span class="mb-2 block text-xs font-extrabold uppercase text-gray-500">Leírás</span>
+                <input name="description" value="{{ old('description') }}" maxlength="500"
+                       class="w-full rounded-xl border border-gray-300 px-4 py-3" placeholder="Például: országok, városok…">
             </label>
             <label class="block">
                 <span class="mb-2 block text-xs font-extrabold uppercase text-gray-500">Angol név</span>
@@ -72,7 +77,7 @@
         @forelse($categories as $category)
             <section class="rounded-3xl bg-white p-6 shadow-sm">
                 <form method="POST" action="{{ route('admin.categories.update', $category) }}"
-                      class="grid grid-cols-1 items-end gap-4 lg:grid-cols-6">
+                      class="grid grid-cols-1 items-end gap-4 lg:grid-cols-7">
                     @csrf
                     @method('PUT')
                     <label class="block lg:col-span-2">
@@ -88,6 +93,11 @@
                     <label class="block">
                         <span class="mb-2 block text-xs font-extrabold uppercase text-gray-500">Ikon</span>
                         <input name="icon" value="{{ $category->icon }}" maxlength="50"
+                               class="w-full rounded-xl border border-gray-300 px-4 py-3">
+                    </label>
+                    <label class="block lg:col-span-2">
+                        <span class="mb-2 block text-xs font-extrabold uppercase text-gray-500">Leírás</span>
+                        <input name="description" value="{{ $category->description }}" maxlength="500"
                                class="w-full rounded-xl border border-gray-300 px-4 py-3">
                     </label>
                     <div class="flex items-center gap-3">

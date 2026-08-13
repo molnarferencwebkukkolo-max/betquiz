@@ -29,7 +29,10 @@ class NotificationPreferenceController extends Controller
                 $request->user()->notificationPreferences()->updateOrCreate(
                     ['event' => $event],
                     [
-                        'database_enabled' => (bool) ($submitted['database'] ?? false),
+                        // Az e-mail-kizárólagos eseményekhez manipulált
+                        // kéréssel sem kapcsolható be belső értesítés.
+                        'database_enabled' => NotificationPreference::supportsChannel($event, 'database')
+                            && (bool) ($submitted['database'] ?? false),
                         'email_enabled' => (bool) ($submitted['email'] ?? false),
                     ]
                 );

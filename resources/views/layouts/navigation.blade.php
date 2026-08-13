@@ -73,7 +73,7 @@
                     </div>
 
                     <a href="{{ route('profile.show') }}" class="nav-link-item">
-                        {{ Auth::user()->name }}
+                        {{ Auth::user()->username ?? Auth::user()->name }}
                     </a>
 
                     <form method="POST" action="{{ route('logout') }}" style="margin: 0;">

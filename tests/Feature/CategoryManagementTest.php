@@ -12,6 +12,24 @@ class CategoryManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_canonical_kwizzgo_categories_are_installed_with_descriptions(): void
+    {
+        $this->assertSame(20, Category::query()->where('is_active', true)->count());
+        $this->assertDatabaseHas('categories', [
+            'slug' => 'foldrajz',
+            'description' => 'Országok, városok, folyók, hegyek, zászlók',
+            'is_active' => true,
+        ]);
+        $this->assertDatabaseHas('categories', [
+            'slug' => 'informatika-es-technologia',
+            'description' => 'Számítógépek, internet, AI, programozás',
+        ]);
+        $this->assertDatabaseHas('categories', [
+            'slug' => 'szorakozas',
+            'description' => 'Bulvár, celebek, rekordok, érdekességek',
+        ]);
+    }
+
     public function test_hostadmin_can_create_and_update_a_category(): void
     {
         $hostadmin = User::factory()->create(['role' => 'hostadmin']);

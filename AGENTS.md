@@ -19,17 +19,9 @@
   - audit all remaining user-facing copy, e-mail content, metadata, assets, and configuration;
   - add or replace the final logo, favicon, social/SEO imagery, and branded e-mail styling;
   - keep technical identifiers such as the project folder, repository, database, routes, and `betquiz.test` unchanged unless explicitly requested.
-- FIRST: complete notification delivery beyond the finished preference infrastructure:
-  - build the weekly quiz performance report data aggregation, notification, and scheduled dispatch;
-  - configure a real SMTP provider for non-local environments and verify password-reset and preference-controlled moderation e-mails end to end;
-  - keep local development on the safe log/array mailer until real SMTP credentials are provided.
-- Add Google OAuth login and registration, including safe linking to existing accounts with the same verified e-mail address, first-login account creation, and clear handling of banned or inactive accounts.
-- Finish the gameplay helper system and define the cost, availability, animation, and exact game rules for:
-  - 50:50 answer elimination;
-  - Poker helper;
-  - 21 helper;
-  - audience vote;
-  - AI hint / "AI tells you" helper.
+- Finish the remaining gameplay-helper follow-ups:
+  - add the deferred helper-package purchase surface and package rules;
+  - complete browser-level balancing and interaction testing for Poker, Blackjack, 50:50, audience vote, and KwizzGoBear.
 - Build advertising placements with a shared, responsive component system:
   - Google AdSense placements;
   - affiliate banner placements;
@@ -38,11 +30,8 @@
   - the admin quiz selector on the single-question edit screen;
   - the bulk quiz owner selector when the user list becomes large.
 - Continue refining the global admin question bank with search, filters, pagination-safe selection, and any additional bulk operations needed beyond the per-quiz question bulk editor.
-- Complete the Phase 1 final product design pass across guest, player, creator, and admin surfaces:
-  - establish a consistent visual system for colors, typography, spacing, components, states, and feedback;
-  - finalize responsive mobile, tablet, and desktop layouts;
-  - remove remaining inline/temporary styling and consolidate reusable UI components;
-  - verify accessibility, loading/empty/error states, advertising placements, and cross-browser behavior.
+- Keep the remaining global question-bank, user-administration, and category-administration visuals unchanged for now; their further redesign is intentionally deferred until the user requests it.
+- Before production launch, perform a focused cross-browser and accessibility verification of the already redesigned Phase 1 surfaces without restyling the intentionally retained admin screens.
 
 ### Phase 2 - Quiz content and expanded user features
 
@@ -66,6 +55,35 @@
 - Complete the competition-specific responsive design, result states, and administrative reporting.
 
 ## Work Log
+
+### 2026-08-13
+
+- Completed weekly quiz performance reporting with aggregation, preference-controlled notification delivery, and scheduled dispatch.
+- Configured the provided KwizzGo SMTP account and connected password-reset and notification mail delivery; sensitive credentials remain environment-only.
+- Added Google OAuth login and registration with existing verified-email account linking, first-login account creation, and inactive/banned-account enforcement.
+- Added a single editable username to profiles, including first-login handling for Google users, and kept the legacy name field synchronized for compatibility.
+- Added private profile details (birth date, gender, country/county, favorite category, relationship status, and child count) with a one-time 2,000 PT completion reward.
+- Added profile results and creator-reward reporting, including answered questions, accuracy, weekly performance, per-quiz results, and earned creator PT.
+- Added marketing e-mail preferences and documented that eligible campaign-page visits may award gift PT.
+- Replaced the quiz category set with the approved canonical 20-category list while preserving existing quiz/question relationships.
+- Fixed quiz creation/editing and CSV-import regressions, including the missing route, unsupported query/validation methods, and import execution.
+- Allowed useradmins and hostadmins to create approved quizzes and add/import any number of questions without moderation, and kept their quiz starts free of entry cost.
+- Implemented the shared gameplay-helper usage ledger: three lifetime free uses per helper, then 100 PT per use.
+- Implemented and styled 50:50, Poker, Blackjack/21, audience vote, and KwizzGoBear helpers; Poker uses real hand ranking with an 80% player-win target, and Blackjack pauses the question timer and displays hand values.
+- Changed answer presentation to a shuffled but per-question session-stable order so the correct answer is not consistently option A and helper labels remain stable after refreshes.
+- Reworked dice-roll results so success/failure remains on the game screen until the player chooses the next action; added mode-specific next-question, cash-out, and return controls.
+- Finished the Blackjack abandonment rule: leaving an unfinished hand now counts as a wrong answer and enters the normal dice-rescue flow; added a confirmed, responsive abandon action and regression coverage for abandonment and player-winning ties.
+- Applied the dark purple/gold KwizzGo design to the profile, results, quiz catalog, quiz setup, gameplay/question screen, own-quiz listing, and per-quiz creator workspace.
+- Extended the same responsive design system to quiz and question creation/editing, the notification center, login, and registration surfaces, including dedicated mobile and tablet breakpoints.
+- Verified all Blade templates and the connected quiz/question, notification, password-authentication, and Google-authentication flows: 48 tests and 224 assertions passed.
+- Added and ran the Google OAuth, username, canonical-category, private-profile, and helper-usage migrations after SQLite backups; database integrity is `ok` with zero foreign-key violations.
+- Verified the connected suite after the feature work: 91 tests and 390 assertions passed; subsequent focused UI/gameplay tests also passed and compiled Blade PHP was linted.
+- NOT DONE: purchasable helper packages and their shop surface were intentionally deferred.
+- NOT DONE: advertising placements, the remaining large-selector autocomplete, and the expanded global question bank remain open.
+- DESIGN DECISION: keep the current global question-bank, user-administration, and category-administration visuals as they are for now; further redesign is deferred by explicit user choice.
+- NOT DONE: a focused pre-launch cross-browser and accessibility verification remains for the already redesigned Phase 1 surfaces.
+- NEW FOLLOW-UP: restore dedicated registration feature coverage; `tests/Feature/Auth/RegistrationTest.php` is currently empty even though the registration view compiles successfully.
+- SECURITY FOLLOW-UP: rotate the SMTP password and Google OAuth client secret that were pasted into chat, then update the environment configuration without committing secrets.
 
 ### 2026-08-07
 
@@ -94,15 +112,10 @@
 - Added and ran the `notifications` and `notification_preferences` migrations locally after timestamped SQLite backups.
 - Verified the live SQLite database after migration: integrity is `ok` and there are zero foreign-key violations.
 - Ran the connected feature suite successfully: 51 tests and 217 assertions passed; all Blade templates compiled successfully.
-- NOT DONE: weekly quiz performance reports are not yet aggregated or scheduled; only their user preferences are implemented.
-- NOT DONE: production SMTP is not configured, so local reset and notification e-mails continue to use the configured log/array mailer behavior.
 - NOT DONE: e-mail verification remains intentionally disabled; re-enabling it would require a separate product decision and a migration/onboarding plan for existing unverified accounts.
-- NEW FOLLOW-UP: build the scheduled weekly report sender and verify preference-controlled delivery through a real SMTP provider before expanding notifications to account, survey, content, and gameplay events.
 - NEW TASK: add admin-managed thematic competitions with configurable topics, time windows, participation/scoring rules, leaderboards, and rewards.
-- NEW TASK: add Google OAuth login and registration with secure existing-account linking and the same banned/inactive-account enforcement as password authentication.
 - NEW TASK: complete the final end-to-end design pass, responsive polish, component consistency, accessibility review, and replacement of remaining temporary or inline styling.
 - PLANNING UPDATE: reorganized all remaining development into three phases: core quizzes/accounts/gameplay, content and expanded user/community features, then thematic house competitions.
-- NEW PHASE 1 TASKS: add the 50:50, Poker, 21, audience-vote, and AI-hint gameplay helpers, with their rules, costs, availability, and presentation defined before implementation.
 - NEW PHASE 1 TASK: create responsive, admin-manageable advertising placements for Google AdSense and affiliate banners without disrupting gameplay.
 - NEW PHASE 2 TASKS: add friendships, direct messaging, and clans/groups with the required privacy, moderation, membership, unread, and notification behavior.
 

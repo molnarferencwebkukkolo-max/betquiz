@@ -37,6 +37,7 @@ class CategoryController extends Controller
             'name.hu' => 'required|string|max:255',
             'name.en' => 'nullable|string|max:255',
             'icon'    => 'nullable|string|max:50',
+            'description' => 'nullable|string|max:500',
         ]);
 
         Category::create([
@@ -47,6 +48,7 @@ class CategoryController extends Controller
             // A slug-ot az angol vagy magyar névből képezzük automatikusan
             'slug' => $this->uniqueSlug($request->input('name.en') ?: $request->input('name.hu')),
             'icon' => $request->input('icon', 'fa-folder'),
+            'description' => $request->input('description'),
             'is_active' => $request->has('is_active'),
         ]);
 
@@ -64,6 +66,7 @@ class CategoryController extends Controller
             'name.hu' => 'required|string|max:255',
             'name.en' => 'nullable|string|max:255',
             'icon'    => 'nullable|string|max:50',
+            'description' => 'nullable|string|max:500',
         ]);
 
         $category->update([
@@ -76,6 +79,7 @@ class CategoryController extends Controller
                 $category
             ),
             'icon' => $request->input('icon'),
+            'description' => $request->input('description'),
             'is_active' => $request->has('is_active'),
         ]);
 

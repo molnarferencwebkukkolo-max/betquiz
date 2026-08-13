@@ -7,11 +7,11 @@
     <!-- Központi Stíluslap -->
     <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
-<body>
+<body class="editor-page question-editor-page">
 
 @include('layouts.navigation')
 
-<div class="q-container">
+<div class="q-container editor-shell">
 
     <div class="q-header">
         <h1 class="q-title">📝 Kérdések Kezelése</h1>

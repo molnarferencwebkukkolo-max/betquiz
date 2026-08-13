@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use App\Services\QuizHelperService;
 
 class QuizController extends Controller
 {
@@ -592,6 +593,26 @@ class QuizController extends Controller
             $currentQuestion->load('options');
         }
 
+        // A válaszokat kérdésenként egyszer keverjük meg, majd a sorrendet a
+        // játékmenet sessionjében rögzítjük. Így a helyes válasz nem marad
+        // rendre az A helyen, de egy frissítés vagy segítség használata közben
+        // sem ugrálnak át más betűjelre az opciók.
+        $answerRelation = method_exists($currentQuestion, 'answers') ? 'answers' : 'options';
+        $answers = $currentQuestion->getRelation($answerRelation);
+        $storedOrder = $game['answer_orders'][$currentQuestion->id] ?? null;
+
+        if (! is_array($storedOrder) || count($storedOrder) !== $answers->count()) {
+            $storedOrder = $answers->pluck('id')->shuffle()->values()->all();
+            $game['answer_orders'][$currentQuestion->id] = $storedOrder;
+            session()->put('game_session', $game);
+        }
+
+        $orderPositions = array_flip(array_map('intval', $storedOrder));
+        $currentQuestion->setRelation(
+            $answerRelation,
+            $answers->sortBy(fn ($answer) => $orderPositions[(int) $answer->id] ?? PHP_INT_MAX)->values()
+        );
+
         // 3. NEHÉZSÉGI ÉS IDŐ SZORZÓK MEGÁLLAPÍTÁSA
         $diffMultipliers = [
             'easy'   => 1.2,
@@ -628,6 +649,7 @@ class QuizController extends Controller
 
         $freeRollsUsed = $todayRolls ? $todayRolls->free_rolls_used : 0;
         $remainingFreeRolls = max(0, 3 - $freeRollsUsed);
+        $helperBalances = app(QuizHelperService::class)->balances($user);
 
         return view('play.game', compact(
             'quiz',
@@ -638,6 +660,7 @@ class QuizController extends Controller
             'timeMultiplier',
             'totalMultiplier',
             'expectedWin'
+            ,'helperBalances'
         ));
     }
 
@@ -665,6 +688,8 @@ class QuizController extends Controller
         $options = method_exists($question, 'options') ? $question->options : $question->answers;
         $correctOption = $options->where('is_correct', true)->first();
         $isCorrect = $selectedOptionId && $correctOption && ((int)$selectedOptionId === (int)$correctOption->id);
+        // A segítségek eredménye kizárólag az aktuális kérdéshez tartozik.
+        unset($game['helper_results']);
         $answerDifficulty = strtolower($question->difficulty ?? 'medium');
         $wasAlreadyAnsweredCorrectly = DB::table('user_answers')
             ->where('user_id', $user->id)
@@ -905,6 +930,7 @@ class QuizController extends Controller
 
         // Feloldjuk a döntési állapotot
         $game['awaiting_decision'] = false;
+        unset($game['dice_result']);
         unset($game['current_question_id']);
         session()->put('game_session', $game);
 

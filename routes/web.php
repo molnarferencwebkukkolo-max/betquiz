@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NotificationPreferenceController;
+use App\Http\Controllers\QuizHelperController;
 
 /*
 |--------------------------------------------------------------------------
@@ -57,9 +58,17 @@ Route::middleware(['auth', 'active'])->group(function () {
 
         // Dobókocka mentőöv (quiz.roll_dice)
         Route::post('/play/{quiz}/roll-dice', [RollDiceController::class, 'rollDice'])->name('roll_dice');
+        Route::post('/play/{quiz}/roll-dice/finish', [RollDiceController::class, 'finishDiceResult'])->name('roll_dice.finish');
 
         // Emmett Brown mentőöv (quiz.time_travel)
         Route::post('/play/{quiz}/time-travel', [TimeTravellerController::class, 'timeTravel'])->name('time_travel');
+
+        // Kérdés közben használható KwizzGo-segítségek.
+        Route::post('/play/{quiz}/helpers/blackjack', [QuizHelperController::class, 'startBlackjack'])->name('helpers.blackjack.start');
+        Route::post('/play/{quiz}/helpers/blackjack/action', [QuizHelperController::class, 'blackjackAction'])->name('helpers.blackjack.action');
+        Route::post('/play/{quiz}/helpers/blackjack/abandon', [QuizHelperController::class, 'abandonBlackjack'])->name('helpers.blackjack.abandon');
+        Route::post('/play/{quiz}/helpers/resolve', [QuizHelperController::class, 'resolve'])->name('helpers.resolve');
+        Route::post('/play/{quiz}/helpers/{helper}', [QuizHelperController::class, 'use'])->name('helpers.use');
 
         // Kiszállás (quiz.cashout)
         Route::post('/play/{quiz}/cashout', [QuizController::class, 'cashout'])->name('cashout');
@@ -95,9 +104,11 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [ProfileController::class, 'show'])->name('show');
+        Route::get('/results', [ProfileController::class, 'results'])->name('results');
         Route::get('/edit', [ProfileController::class, 'edit'])->name('edit');
         Route::patch('/', [ProfileController::class, 'update'])->name('update');
         Route::post('/game-experience', [ProfileController::class, 'updateGameExperience'])->name('game-experience');
+        Route::patch('/private-details', [ProfileController::class, 'updatePrivateDetails'])->name('private-details');
         Route::patch('/notification-preferences', [NotificationPreferenceController::class, 'update'])
             ->name('notification-preferences');
         Route::post('/password', [ProfileController::class, 'updatePassword'])->name('password');

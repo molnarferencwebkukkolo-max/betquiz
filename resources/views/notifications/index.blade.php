@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Értesítések - KwizzGo</title>
-    <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
-<body class="bg-slate-50 min-h-screen">
+<body class="notification-center-page min-h-screen">
 @include('layouts.navigation')
 
-<main class="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+<main class="notification-center-shell max-w-4xl mx-auto px-4 sm:px-6 py-10">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-7">
         <div>
             <h1 class="text-3xl font-extrabold text-slate-900">Értesítések</h1>

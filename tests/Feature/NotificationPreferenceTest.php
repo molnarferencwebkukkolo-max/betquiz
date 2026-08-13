@@ -24,10 +24,37 @@ class NotificationPreferenceTest extends TestCase
             ->assertSee('Értesítések')
             ->assertSee('Kvíz jóváhagyása')
             ->assertSee('Kvíz elutasítása')
-            ->assertSee('Heti kvízteljesítmény-jelentés');
+            ->assertSee('Heti kvízteljesítmény-jelentés')
+            ->assertSee('Reklám- és marketingüzenetek')
+            ->assertSee('ajándék PT járhat')
+            ->assertDontSee('preferences[marketing][database]', false)
+            ->assertSee('preferences[marketing][email]', false);
 
         $this->assertTrue($user->wantsNotification('approved', 'database'));
         $this->assertFalse($user->wantsNotification('approved', 'mail'));
+        $this->assertFalse($user->wantsNotification('marketing', 'database'));
+        $this->assertFalse($user->wantsNotification('marketing', 'mail'));
+    }
+
+    public function test_marketing_can_only_be_enabled_for_email(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->patch(route('profile.notification-preferences'), [
+            'preferences' => [
+                'marketing' => [
+                    'event' => 'marketing',
+                    'database' => '1',
+                    'email' => '1',
+                ],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $preference = $user->notificationPreferences()->where('event', 'marketing')->firstOrFail();
+        $this->assertFalse($preference->database_enabled);
+        $this->assertTrue($preference->email_enabled);
+        $this->assertFalse($user->wantsNotification('marketing', 'database'));
+        $this->assertTrue($user->wantsNotification('marketing', 'mail'));
     }
 
     public function test_user_can_save_event_and_channel_specific_preferences(): void

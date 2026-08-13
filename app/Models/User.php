@@ -8,10 +8,11 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'role', 'is_banned', 'is_active', 'points', 'time_travel_theme'])]
+#[Fillable(['name', 'username', 'email', 'google_id', 'email_verified_at', 'password', 'role', 'is_banned', 'is_active', 'points', 'time_travel_theme', 'birth_date', 'gender', 'country', 'county', 'favorite_category_id', 'relationship_status', 'children_count', 'profile_details_rewarded_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -40,6 +41,9 @@ class User extends Authenticatable
             'points' => 'integer', // <-- Ezt is beteheted, hogy a Laravel mindig számként kezelje
             'is_banned' => 'boolean',
             'is_active' => 'boolean',
+            'birth_date' => 'date',
+            'children_count' => 'integer',
+            'profile_details_rewarded_at' => 'datetime',
         ];
     }
 
@@ -84,12 +88,21 @@ class User extends Authenticatable
         return $this->hasMany(NotificationPreference::class);
     }
 
+    public function favoriteCategory(): BelongsTo
+    {
+        return $this->belongsTo(Category::class, 'favorite_category_id');
+    }
+
     /**
      * Beállítás hiányában megőrizzük a jelenlegi viselkedést:
      * belső értesítés igen, e-mail csak kifejezett engedéllyel.
      */
     public function wantsNotification(string $event, string $channel): bool
     {
+        if (! NotificationPreference::supportsChannel($event, $channel)) {
+            return false;
+        }
+
         $preference = $this->notificationPreferences()
             ->where('event', $event)
             ->first();
