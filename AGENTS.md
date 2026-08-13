@@ -15,6 +15,13 @@
 
 ### Phase 1 - Working quizzes, registration, user management, and gameplay
 
+- TOMORROW FIRST: complete the advertising placements, then deploy the complete application to the cPanel shared-hosting environment:
+  - build responsive Google AdSense, affiliate-banner, and admin-configurable placement slots without interrupting critical gameplay;
+  - audit the hosting environment for the required PHP version/extensions, Composer availability, document-root configuration, writable Laravel directories, cron support, SMTP, HTTPS, and database options;
+  - prepare production environment values without committing secrets, install production dependencies, build frontend assets, run migrations safely with a backup, create the storage link or shared-hosting equivalent, and warm Laravel caches;
+  - point the public web root safely at Laravel's `public` directory without exposing `.env`, source files, storage, or the SQLite database;
+  - configure the scheduler/cron for weekly reports and verify login, Google OAuth callback URLs, password reset, e-mail delivery, uploads, quiz creation/import, gameplay, helpers, notifications, and responsive rendering on the live domain;
+  - document the deployment and rollback procedure before considering the production rollout complete.
 - Complete the `BetQuiz` -> `KwizzGo` brand migration end to end:
   - audit all remaining user-facing copy, e-mail content, metadata, assets, and configuration;
   - add or replace the final logo, favicon, social/SEO imagery, and branded e-mail styling;
@@ -78,12 +85,15 @@
 - Verified all Blade templates and the connected quiz/question, notification, password-authentication, and Google-authentication flows: 48 tests and 224 assertions passed.
 - Added and ran the Google OAuth, username, canonical-category, private-profile, and helper-usage migrations after SQLite backups; database integrity is `ok` with zero foreign-key violations.
 - Verified the connected suite after the feature work: 91 tests and 390 assertions passed; subsequent focused UI/gameplay tests also passed and compiled Blade PHP was linted.
+- Completed the final helper follow-up for this workday and verified the complete suite successfully: 95 tests and 406 assertions passed.
+- Committed every current project change, including `database/database.sqlite`, and pushed commit `398a8ab` to `origin/main`; confirmed that the local and remote commit hashes match and that pasted SMTP/Google secrets were not included in tracked text files.
 - NOT DONE: purchasable helper packages and their shop surface were intentionally deferred.
 - NOT DONE: advertising placements, the remaining large-selector autocomplete, and the expanded global question bank remain open.
 - DESIGN DECISION: keep the current global question-bank, user-administration, and category-administration visuals as they are for now; further redesign is deferred by explicit user choice.
 - NOT DONE: a focused pre-launch cross-browser and accessibility verification remains for the already redesigned Phase 1 surfaces.
 - NEW FOLLOW-UP: restore dedicated registration feature coverage; `tests/Feature/Auth/RegistrationTest.php` is currently empty even though the registration view compiles successfully.
 - SECURITY FOLLOW-UP: rotate the SMTP password and Google OAuth client secret that were pasted into chat, then update the environment configuration without committing secrets.
+- TOMORROW: implement the advertising placements first, then deploy the complete KwizzGo system to the cPanel shared-hosting environment and perform the production smoke-test checklist.
 
 ### 2026-08-07
 
