@@ -33,22 +33,6 @@ class UserController extends Controller
     }
 
     /**
-     * 🛠️ DEVTOOL: Szerepkör gyorsváltó (Teszteléshez)
-     */
-    public function switchRole(Request $request)
-    {
-        $request->validate([
-            'role' => 'required|in:user,useradmin,hostadmin',
-        ]);
-
-        $user = Auth::user();
-        $user->role = $request->role;
-        $user->save();
-
-        return back()->with('success', "🎭 Szerepkör sikeresen átállítva: {$request->role}!");
-    }
-
-    /**
      * Admin: Felhasználók listája
      */
     public function index(Request $request)
@@ -93,6 +77,7 @@ class UserController extends Controller
             'verified' => User::whereNotNull('email_verified_at')->count(),
             'banned' => User::where('is_banned', true)->count(),
             'inactive' => User::where('is_active', false)->count(),
+            'ad_free' => User::where('is_ad_free', true)->count(),
         ];
 
         return view('admin.users.index', compact(
@@ -116,10 +101,21 @@ class UserController extends Controller
         $validated = $request->validate([
             'action' => [
                 'required',
-                Rule::in(['ban', 'unban', 'deactivate', 'activate', 'promote', 'demote']),
+                Rule::in(['ban', 'unban', 'deactivate', 'activate', 'promote', 'demote', 'enable_ad_free', 'disable_ad_free']),
             ],
         ]);
         $action = $validated['action'];
+
+        // A reklámmentesség kereskedelmi/adminisztratív jogosultság, ezért ezt
+        // kizárólag hostadmin kezelheti, a moderációs szerepkörtől függetlenül.
+        if (in_array($action, ['enable_ad_free', 'disable_ad_free'], true)) {
+            abort_unless($admin->isHostadmin(), 403);
+            $user->update(['is_ad_free' => $action === 'enable_ad_free']);
+
+            return back()->with('success', $action === 'enable_ad_free'
+                ? "{$user->name} reklámmentességet kapott."
+                : "{$user->name} reklámmentessége megszűnt.");
+        }
 
         // Saját fiókot és hostadmint nem engedünk ezen a gyorsfelületen
         // módosítani, mert az adminisztrátori kizáráshoz vezethetne.

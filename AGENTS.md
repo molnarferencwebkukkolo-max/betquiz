@@ -15,13 +15,14 @@
 
 ### Phase 1 - Working quizzes, registration, user management, and gameplay
 
-- TOMORROW FIRST: complete the advertising placements, then deploy the complete application to the cPanel shared-hosting environment:
-  - build responsive Google AdSense, affiliate-banner, and admin-configurable placement slots without interrupting critical gameplay;
-  - audit the hosting environment for the required PHP version/extensions, Composer availability, document-root configuration, writable Laravel directories, cron support, SMTP, HTTPS, and database options;
-  - prepare production environment values without committing secrets, install production dependencies, build frontend assets, run migrations safely with a backup, create the storage link or shared-hosting equivalent, and warm Laravel caches;
-  - point the public web root safely at Laravel's `public` directory without exposing `.env`, source files, storage, or the SQLite database;
-  - configure the scheduler/cron for weekly reports and verify login, Google OAuth callback URLs, password reset, e-mail delivery, uploads, quiz creation/import, gameplay, helpers, notifications, and responsive rendering on the live domain;
-  - document the deployment and rollback procedure before considering the production rollout complete.
+- NEXT FIRST: complete the production hardening and browser-level smoke test after the successful initial cPanel deployment:
+  - verify emergency-hostadmin and normal login, registration with reCAPTCHA v3, Google OAuth, password reset, SMTP delivery, admin tools, content management, advertisements, uploads, quiz creation/import, gameplay, helpers, notifications, and responsive rendering on the live domain;
+  - configure and verify the scheduler/cron for weekly reports;
+  - verify HTTP-to-HTTPS redirection, required PHP extensions, writable Laravel directories, and the manually created shared-hosting storage symlink;
+  - confirm removal of the one-time `public/kwizzgo-deploy.php` endpoint and any uploaded release archives that are no longer needed;
+  - document and test the production database-backup and rollback procedure;
+  - rotate every secret exposed in chat or diagnostic output, including SMTP, Google OAuth, reCAPTCHA, emergency-hostadmin, and FTP credentials, and keep replacements environment-only;
+  - disable Coming Soon mode only after the smoke test and secret rotation are complete.
 - Complete the `BetQuiz` -> `KwizzGo` brand migration end to end:
   - audit all remaining user-facing copy, e-mail content, metadata, assets, and configuration;
   - add or replace the final logo, favicon, social/SEO imagery, and branded e-mail styling;
@@ -29,20 +30,17 @@
 - Finish the remaining gameplay-helper follow-ups:
   - add the deferred helper-package purchase surface and package rules;
   - complete browser-level balancing and interaction testing for Poker, Blackjack, 50:50, audience vote, and KwizzGoBear.
-- Build advertising placements with a shared, responsive component system:
-  - Google AdSense placements;
-  - affiliate banner placements;
-  - admin-configurable placement slots that do not interrupt critical gameplay interactions.
 - Replace the remaining Phase 1 large static selectors with server-side autocomplete:
   - the admin quiz selector on the single-question edit screen;
   - the bulk quiz owner selector when the user list becomes large.
 - Continue refining the global admin question bank with search, filters, pagination-safe selection, and any additional bulk operations needed beyond the per-quiz question bulk editor.
 - Keep the remaining global question-bank, user-administration, and category-administration visuals unchanged for now; their further redesign is intentionally deferred until the user requests it.
-- Before production launch, perform a focused cross-browser and accessibility verification of the already redesigned Phase 1 surfaces without restyling the intentionally retained admin screens.
+- Perform a focused cross-browser and accessibility verification of the already redesigned Phase 1 surfaces without restyling the intentionally retained admin screens.
+- Restore general registration feature coverage in the currently empty `tests/Feature/Auth/RegistrationTest.php`; the new reCAPTCHA-specific registration protection already has dedicated coverage.
 
-### Phase 2 - Quiz content and expanded user features
+### Phase 2 - Expanded content and user features
 
-- Add content/article sections connected to quizzes, including admin authoring and links between articles and related quizzes.
+- Extend the completed hostadmin content/page CMS with user-authored articles, moderation, author workflows, and links between articles and related quizzes.
 - Extend user accounts with questionnaires/surveys that can award points.
 - Add friendships, including friend requests, acceptance/rejection, removal, privacy rules, and blocking considerations.
 - Add direct user-to-user messaging with unread state, moderation/reporting safeguards, and notification-preference integration.
@@ -62,6 +60,47 @@
 - Complete the competition-specific responsive design, result states, and administrative reporting.
 
 ## Work Log
+
+### 2026-08-14
+
+- Completed the responsive, database-backed advertising system:
+  - added hostadmin management for image/link advertisements and trusted Google AdSense code;
+  - added weighted random rotation, active date ranges, placement activation, and shared Blade rendering;
+  - added top-horizontal, content-horizontal, right-sidebar, and gameplay decision-square placements;
+  - ensured all placements are hidden for users marked as ad-free, with hostadmin-only control of that user flag.
+- Generated, optimized, stored, and seeded eight project-local demo creatives: two for each of the four current advertising positions; the demo seeder is idempotent.
+- Added the square advertisement beside the correct-answer decision panel, with responsive stacking below the panel on narrower screens.
+- Completed the initial content management system under the `Tartalomkezelő` navigation group:
+  - hostadmin-managed pages and articles with publication state, scheduling, revisions, sanitized WYSIWYG HTML, and editor image uploads;
+  - SEO metadata, canonical settings, social sharing metadata/image, and LLMS title/summary/include settings;
+  - public HTML and Markdown content endpoints, `llms.txt`, `sitemap.xml`, and configurable footer-menu inclusion;
+  - seeded the ÁSZF, Adatkezelési szabályzat, and Médiaajánlat page records for admin editing.
+- Added an environment-controlled Coming Soon mode through `COMING_SOON_MODE`:
+  - returns a branded responsive HTTP 503 page for guests and regular users;
+  - preserves login, password-access routes, health checks, and full hostadmin access.
+- Added Google reCAPTCHA v3 protection to e-mail login and registration:
+  - environment-controlled enablement, keys, and minimum score;
+  - invisible per-form tokens with separate `login` and `register` actions;
+  - server-side success, action, and score verification through Google's `siteverify` endpoint with timeout and fail-closed error handling.
+- Added a secure environment-backed emergency hostadmin that works without a pre-existing database user and is restored as a protected hostadmin after the production schema exists.
+- Removed self-service role switching from user settings and kept role changes under the established hostadmin moderation rules.
+- Standardized connected public content and quiz-facing copy on the `KwizzGo` brand while preserving technical project identifiers.
+- Reworked fresh production database bootstrap behavior so migrations create the schema, canonical categories, initial managed pages, and advertising placements without creating a known-password administrator, demo quiz, orphan questions, or demo advertisements.
+- Made the locked Composer dependency set compatible with the hosting account's PHP 8.3 runtime and generated a Linux-safe production release containing optimized dependencies and frontend assets but no SQLite database or tests.
+- Completed the initial cPanel deployment to MySQL with Laravel's `public` directory as document root, production caches, database migrations, and a manual storage symlink because the host disables PHP `exec()`.
+- Hardened production packaging so the local Vite `public/hot` marker can never redirect live visitors to their own localhost development server.
+- Fixed Windows local serving for the accented project path by using the existing ASCII `Q:` drive mapping; the Laravel and Vite development servers are running separately as required.
+- Verification completed during the work:
+  - the full suite passed at the end of the CMS/advertising implementation with 107 tests and 464 assertions;
+  - later focused advertising tests passed with 5 tests and 18 assertions;
+  - Coming Soon tests passed with 5 tests and 8 assertions;
+  - the final complete suite passed with 126 tests and 554 assertions after the PHP 8.3 and reCAPTCHA v3 corrections;
+  - Blade compilation succeeded, SQLite integrity is `ok`, and foreign-key checks reported zero violations.
+- DONE: the advertising system, initial hostadmin content/page CMS, Coming Soon mode, reCAPTCHA v3, emergency hostadmin, clean production bootstrap, PHP 8.3 release build, and initial cPanel deployment are complete.
+- DEPLOYMENT STATUS: the application schema and caches are live on cPanel/MySQL, but the complete real-browser production smoke test and rollback checklist remain the immediate next milestone.
+- SECURITY FOLLOW-UP: rotate SMTP, Google OAuth, reCAPTCHA, emergency-hostadmin, and FTP secrets exposed in chat or diagnostic output; keep replacements environment-only.
+- RELEASE FOLLOW-UP: verify deletion of the one-time web deployment endpoint and unneeded uploaded archives, configure cron, confirm HTTP-to-HTTPS redirection, and disable Coming Soon only after production acceptance.
+- NEW FOLLOW-UP: extend the completed CMS in Phase 2 with user-authored articles, moderation/author workflows, and quiz-to-article relationships.
 
 ### 2026-08-13
 

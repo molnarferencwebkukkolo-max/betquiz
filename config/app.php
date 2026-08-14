@@ -56,6 +56,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Coming Soon Mode
+    |--------------------------------------------------------------------------
+    |
+    | Bekapcsolva a látogatók az előkészületi oldalt látják. A hostadmin
+    | továbbra is be tud lépni, és a teljes alkalmazást használhatja.
+    |
+    */
+
+    'coming_soon' => (bool) env('COMING_SOON_MODE', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

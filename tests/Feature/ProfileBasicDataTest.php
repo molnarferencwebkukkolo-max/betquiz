@@ -48,4 +48,20 @@ class ProfileBasicDataTest extends TestCase
             ->assertSee('kwizzmester')
             ->assertSee(route('profile.edit'), false);
     }
+
+    public function test_profile_does_not_offer_or_route_self_service_role_switching(): void
+    {
+        $user = User::factory()->create(['role' => 'user']);
+
+        $this->actingAs($user)
+            ->get(route('profile.show'))
+            ->assertOk()
+            ->assertDontSee('Szerepkör váltás');
+
+        $this->actingAs($user)
+            ->post('/profile/switch-role', ['role' => 'hostadmin'])
+            ->assertNotFound();
+
+        $this->assertSame('user', $user->fresh()->role);
+    }
 }

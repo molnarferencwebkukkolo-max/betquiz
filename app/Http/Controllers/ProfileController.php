@@ -11,6 +11,7 @@ use Illuminate\View\View;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use App\Models\NotificationPreference;
 use App\Models\Category;
 use Carbon\CarbonImmutable;
@@ -34,6 +35,12 @@ class ProfileController extends Controller
     public function update(Request $request)
     {
         $user = $request->user();
+
+        if ($user->isEmergencyAdmin()) {
+            throw ValidationException::withMessages([
+                'username' => 'A KwizzGo vészhelyzeti hostadmin azonosítója kizárólag az ENV-konfigurációból kezelhető.',
+            ]);
+        }
 
         $request->merge([
             'username' => mb_strtolower(trim((string) $request->input('username'))),
@@ -219,24 +226,6 @@ class ProfileController extends Controller
             'creatorAnsweredQuestions',
             'creatorRewardPoints',
         ));
-    }
-
-    public function switchRole(Request $request)
-    {
-        $request->validate([
-            'role' => 'required|string',
-        ]);
-
-        /** @var \App\Models\User $user */
-        $user = auth()->user();
-
-        // Közvetlen értékadás a tulajdonságra (ez megkerüli a fillable korlátokat is)
-        $user->role = $request->input('role');
-
-        // Explicit mentés az adatbázisba
-        $user->save();
-
-        return redirect()->back()->with('success', 'Szerepkör frissítve: ' . $user->role);
     }
 
     public function updateGameExperience(Request $request)

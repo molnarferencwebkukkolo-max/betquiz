@@ -10,6 +10,9 @@ use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\AdvertisementController;
+use App\Http\Controllers\Admin\ContentController as AdminContentController;
+use App\Http\Controllers\ContentPageController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NotificationPreferenceController;
@@ -22,6 +25,16 @@ use App\Http\Controllers\QuizHelperController;
 */
 
 Route::get('/', [QuizController::class, 'dashboard']);
+Route::get('/aszf', [ContentPageController::class, 'short'])->defaults('slug', 'aszf')->name('content.aszf');
+Route::get('/adatkezeles', [ContentPageController::class, 'short'])->defaults('slug', 'adatkezeles')->name('content.privacy');
+Route::get('/mediaajanlat', [ContentPageController::class, 'short'])->defaults('slug', 'mediaajanlat')->name('content.media-kit');
+Route::get('/llms.txt', [ContentPageController::class, 'llms'])->name('content.llms');
+Route::get('/sitemap.xml', [ContentPageController::class, 'sitemap'])->name('content.sitemap');
+Route::get('/oldal/{content:slug}.md', [ContentPageController::class, 'markdown'])->name('content.markdown');
+Route::get('/oldal/{content:slug}', [ContentPageController::class, 'show'])->name('content.show');
+Route::get('/cikkek', [ContentPageController::class, 'articles'])->name('articles.index');
+Route::get('/cikk/{content:slug}.md', [ContentPageController::class, 'markdown'])->name('articles.markdown');
+Route::get('/cikk/{content:slug}', [ContentPageController::class, 'article'])->name('articles.show');
 
 // Az e-mail-hitelesítés jelenleg nincs aktiválva a User modellen, ezért
 // itt csak a valóban érvényes auth- és fiókállapot-feltételek szerepelnek.
@@ -114,7 +127,6 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/password', [ProfileController::class, 'updatePassword'])->name('password');
         Route::delete('/', [ProfileController::class, 'destroy'])->name('destroy');
 
-        Route::post('/switch-role', [ProfileController::class, 'switchRole'])->name('switch-role');
     });
 
 
@@ -126,6 +138,10 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::resource('categories', CategoryController::class)
             ->only(['index', 'store', 'update', 'destroy']);
         Route::resource('settings', SettingController::class);
+        Route::resource('advertisements', AdvertisementController::class)
+            ->only(['index', 'store', 'update', 'destroy']);
+        Route::post('/contents/upload-image', [AdminContentController::class, 'uploadImage'])->name('contents.upload-image');
+        Route::resource('contents', AdminContentController::class)->except(['show']);
 
         Route::post('/quizzes/{quiz}/approve', [QuizManagementController::class, 'approveQuiz'])->name('quizzes.approve');
         Route::post('/quizzes/{quiz}/reject', [QuizManagementController::class, 'rejectQuiz'])->name('quizzes.reject');

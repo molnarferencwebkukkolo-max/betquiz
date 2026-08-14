@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'username', 'email', 'google_id', 'email_verified_at', 'password', 'role', 'is_banned', 'is_active', 'points', 'time_travel_theme', 'birth_date', 'gender', 'country', 'county', 'favorite_category_id', 'relationship_status', 'children_count', 'profile_details_rewarded_at'])]
+#[Fillable(['name', 'username', 'email', 'google_id', 'email_verified_at', 'password', 'role', 'is_banned', 'is_active', 'is_ad_free', 'points', 'time_travel_theme', 'birth_date', 'gender', 'country', 'county', 'favorite_category_id', 'relationship_status', 'children_count', 'profile_details_rewarded_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -26,6 +26,7 @@ class User extends Authenticatable
     protected $attributes = [
         'is_banned' => false,
         'is_active' => true,
+        'is_ad_free' => false,
     ];
 
     /**
@@ -41,6 +42,7 @@ class User extends Authenticatable
             'points' => 'integer', // <-- Ezt is beteheted, hogy a Laravel mindig számként kezelje
             'is_banned' => 'boolean',
             'is_active' => 'boolean',
+            'is_ad_free' => 'boolean',
             'birth_date' => 'date',
             'children_count' => 'integer',
             'profile_details_rewarded_at' => 'datetime',
@@ -61,6 +63,22 @@ class User extends Authenticatable
     public function isUseradmin(): bool
     {
         return in_array($this->role, ['hostadmin', 'useradmin']);
+    }
+
+    /** Az ENV-ből helyreállítható hostadmin azonosítása. */
+    public function isEmergencyAdmin(): bool
+    {
+        $email = mb_strtolower(trim((string) config('emergency_admin.email')));
+
+        return config('emergency_admin.enabled')
+            && $email !== ''
+            && hash_equals($email, mb_strtolower($this->email));
+    }
+
+    /** A reklámmentességet minden megjelenítési pont ugyaninnen ellenőrzi. */
+    public function isAdFree(): bool
+    {
+        return $this->is_ad_free;
     }
 
     public function favorites()

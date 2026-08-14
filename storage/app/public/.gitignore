@@ -1,2 +1,6 @@
 *
 !.gitignore
+!advertisements/
+advertisements/*
+!advertisements/demo/
+!advertisements/demo/*.jpg

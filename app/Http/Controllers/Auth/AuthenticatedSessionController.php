@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\RecaptchaVerifier;
+use App\Services\EmergencyAdminAuthenticator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,12 +25,27 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(
+        Request $request,
+        RecaptchaVerifier $recaptcha,
+        EmergencyAdminAuthenticator $emergencyAdmin,
+    ): RedirectResponse
     {
+        $recaptcha->validate($request, 'login');
+
         $credentials = $request->validate([
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
         ]);
+
+        // A vészhelyzeti admin jelszava nem kerül a users táblába: sikeres ENV-
+        // ellenőrzés után közvetlenül jelentkeztetjük be a helyreállított hostadmint.
+        if ($user = $emergencyAdmin->attempt($credentials['email'], $credentials['password'])) {
+            Auth::login($user, $request->boolean('remember'));
+            $request->session()->regenerate();
+
+            return redirect()->intended(route('dashboard', absolute: false));
+        }
 
         // Az inaktív fiókot még a jelszó ellenőrzése előtt kizárjuk.
         // Ezzel nem jöhet létre új session, a felhasználó pedig érthető

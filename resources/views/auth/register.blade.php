@@ -6,6 +6,9 @@
     <title>KwizzGo - Regisztráció</title>
     <!-- Központi Stíluslap -->
     <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
+    @if(config('recaptcha.enabled') && config('recaptcha.site_key'))
+        <script src="https://www.google.com/recaptcha/api.js?render={{ urlencode(config('recaptcha.site_key')) }}&hl=hu" defer></script>
+    @endif
 </head>
 <body class="auth-wrapper auth-dark-page">
 
@@ -21,7 +24,7 @@
         <span style="height: 1px; flex: 1; background: #e2e8f0;"></span><span>vagy e-maillel</span><span style="height: 1px; flex: 1; background: #e2e8f0;"></span>
     </div>
 
-    <form method="POST" action="{{ route('register') }}">
+    <form method="POST" action="{{ route('register') }}" data-recaptcha-v3-form data-recaptcha-action="register">
         @csrf
 
         <!-- Name -->
@@ -49,6 +52,13 @@
             <input id="password_confirmation" class="form-input" type="password" name="password_confirmation" required />
         </div>
 
+        @if(config('recaptcha.enabled') && config('recaptcha.site_key'))
+            <input type="hidden" name="g-recaptcha-response" value="">
+            @error('g-recaptcha-response')
+                <p class="form-error auth-recaptcha-error">{{ $message }}</p>
+            @enderror
+        @endif
+
         <div class="auth-actions">
             <a class="auth-link" href="{{ route('login') }}">
                 Már van fiókom ➔
@@ -60,6 +70,29 @@
         </div>
     </form>
 </div>
+
+@if(config('recaptcha.enabled') && config('recaptcha.site_key'))
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.querySelector('[data-recaptcha-v3-form]');
+            let verifiedSubmission = false;
+
+            form?.addEventListener('submit', (event) => {
+                if (verifiedSubmission) return;
+
+                event.preventDefault();
+                grecaptcha.ready(() => {
+                    grecaptcha.execute(@json(config('recaptcha.site_key')), { action: form.dataset.recaptchaAction })
+                        .then((token) => {
+                            form.elements['g-recaptcha-response'].value = token;
+                            verifiedSubmission = true;
+                            form.requestSubmit();
+                        });
+                });
+            });
+        });
+    </script>
+@endif
 
 </body>
 </html>

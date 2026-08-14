@@ -23,6 +23,10 @@
         </form>
     </section>
 
+    <x-ad-slot position="content_horizontal" />
+
+    <div class="catalog-content-with-sidebar">
+    <div class="catalog-results-main">
     <div class="catalog-heading-row"><div><h2>Elérhető kvízek</h2><p>{{ $quizzes->total() }} találat</p></div>@if($hasActiveFilters)<span>Aktív szűrés</span>@endif</div>
 
     @if($quizzes->isEmpty())
@@ -52,5 +56,9 @@
         </section>
         <div class="catalog-pagination">{{ $quizzes->links() }}</div>
     @endif
+    </div>
+    <x-ad-slot position="right_sidebar" />
+    </div>
 </main>
+<x-site-footer />
 </body></html>

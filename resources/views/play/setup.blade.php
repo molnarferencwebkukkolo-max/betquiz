@@ -99,5 +99,6 @@
             </form>
         </section>
     </div>
+    <x-ad-slot position="content_horizontal" />
 </main>
 @endsection

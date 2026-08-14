@@ -66,6 +66,8 @@
         </div>
     </section>
 
+    <x-ad-slot position="top_horizontal" />
+
     <section class="home-light-section">
         <div class="home-content-shell">
             <h2>Miért válaszd a <span>KwizzGo</span>-t?</h2>
@@ -157,6 +159,8 @@
         </div>
     </section>
 </main>
+
+<x-site-footer />
 
 @guest
     <div id="guestAuthPrompt" class="guest-auth-modal" aria-hidden="true">

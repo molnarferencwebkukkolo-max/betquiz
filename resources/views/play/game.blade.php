@@ -104,6 +104,7 @@
 
             {{-- 1. ESET: HELYES VÁLASZ UTÁNI DÖNTÉSI KÉPERNYŐ (NORMÁL ÉS ODDS MÓDBAN IS) --}}
             @if(!empty($game['awaiting_decision']))
+                <div class="game-decision-with-ad">
                 <div class="bg-gradient-to-br from-emerald-900 via-teal-950 to-slate-900 text-white rounded-3xl p-8 text-center shadow-2xl mb-6 border border-emerald-500/30">
 
                     <div class="w-16 h-16 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 animate-bounce">
@@ -159,6 +160,8 @@
                         </form>
                     </div>
 
+                </div>
+                    <x-ad-slot position="game_decision_square" />
                 </div>
 
                 {{-- 2. ESET: ROSSZ VÁLASZ UTÁN ➔ KOCKADOBÁS MENTŐÖV --}}

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\RecaptchaVerifier;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,8 +29,10 @@ class RegisteredUserController extends Controller
      *
      * @throws \Illuminate\Validation\ValidationException
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, RecaptchaVerifier $recaptcha): RedirectResponse
     {
+        $recaptcha->validate($request, 'register');
+
         $request->merge([
             'username' => mb_strtolower(trim((string) $request->input('username'))),
         ]);

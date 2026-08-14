@@ -1,0 +1,13 @@
+<!DOCTYPE html><html lang="hu"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ $content->effectiveSeoTitle() }}</title><meta name="description" content="{{ $content->effectiveSeoDescription() }}">
+<meta name="robots" content="{{ $content->robots_index ? 'index' : 'noindex' }},{{ $content->robots_follow ? 'follow' : 'nofollow' }}">
+<link rel="canonical" href="{{ $content->canonical_url ?: $content->publicUrl() }}">
+<meta property="og:type" content="{{ $content->type === 'article' ? 'article' : 'website' }}"><meta property="og:title" content="{{ $content->social_title ?: $content->effectiveSeoTitle() }}"><meta property="og:description" content="{{ $content->social_description ?: $content->effectiveSeoDescription() }}"><meta property="og:url" content="{{ $content->canonical_url ?: $content->publicUrl() }}">
+@if($content->social_image_path)<meta property="og:image" content="{{ asset('storage/'.$content->social_image_path) }}">@endif
+<meta name="twitter:card" content="{{ $content->twitter_card }}"><meta name="twitter:title" content="{{ $content->social_title ?: $content->effectiveSeoTitle() }}"><meta name="twitter:description" content="{{ $content->social_description ?: $content->effectiveSeoDescription() }}">@if($content->social_image_path)<meta name="twitter:image" content="{{ asset('storage/'.$content->social_image_path) }}">@endif
+<script type="application/ld+json">{!! json_encode(['@context'=>'https://schema.org','@type'=>$content->schema_type,'name'=>$content->title,'description'=>$content->effectiveSeoDescription(),'url'=>$content->canonical_url ?: $content->publicUrl(),'datePublished'=>$content->published_at?->toIso8601String(),'dateModified'=>$content->updated_at->toIso8601String()], JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) !!}</script>
+<link rel="stylesheet" href="{{ asset('css/app-custom.css') }}"></head>
+<body class="public-content-page">@include('layouts.navigation')
+<main class="public-content-shell"><article><header><span>{{ $content->type === 'article' ? 'KwizzGo cikk' : 'KwizzGo információ' }}</span><h1>{{ $content->title }}</h1>@if($content->excerpt)<p>{{ $content->excerpt }}</p>@endif<div class="public-content-meta">@if($content->effective_at)<span>Hatályos: {{ $content->effective_at->format('Y. m. d.') }}</span>@endif<span>Verzió: {{ $content->version }}</span><span>Frissítve: {{ $content->updated_at->format('Y. m. d.') }}</span></div></header><div class="public-content-prose">{!! $content->content_html !!}</div></article><x-ad-slot position="content_horizontal" /></main>
+<x-site-footer /></body></html>

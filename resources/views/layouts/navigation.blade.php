@@ -47,6 +47,14 @@
                     @endif
 
                     @if(auth()->check() && auth()->user()->isHostadmin())
+                        <a href="{{ route('admin.contents.index') }}"
+                           class="nav-link-item nav-link-purple {{ request()->routeIs('admin.contents.*') ? 'active' : '' }}">
+                            Tartalomkezelő
+                        </a>
+                        <a href="{{ route('admin.advertisements.index') }}"
+                           class="nav-link-item nav-link-purple {{ request()->routeIs('admin.advertisements.*') ? 'active' : '' }}">
+                            Hirdetések
+                        </a>
                         <a href="{{ route('admin.categories.index') }}"
                            class="nav-link-item nav-link-purple {{ request()->routeIs('admin.categories.*') ? 'active' : '' }}">
                             Kategóriák

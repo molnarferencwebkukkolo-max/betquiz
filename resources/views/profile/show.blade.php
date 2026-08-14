@@ -35,7 +35,9 @@
                 <h2>{{ $user->username ?: $user->name }} <span class="verified-mark" title="Regisztrált felhasználó">◆</span></h2>
                 <p>{{ $user->email }}</p>
                 <span class="role-badge {{ $user->isHostadmin() ? 'role-badge-hostadmin' : ($user->isUseradmin() ? 'role-badge-useradmin' : 'role-badge-user') }}">{{ $user->role ?? 'user' }}</span>
-                <a href="{{ route('profile.edit') }}" class="profile-secondary-button">✎ &nbsp; Alapadatok szerkesztése</a>
+                @unless($user->isEmergencyAdmin())
+                    <a href="{{ route('profile.edit') }}" class="profile-secondary-button">✎ &nbsp; Alapadatok szerkesztése</a>
+                @endunless
 
                 <div class="profile-side-stats">
                     <div><span>🏆</span><p>Összes pont<strong>{{ number_format($user->points, 0, ',', ' ') }} PT</strong></p></div>
@@ -104,18 +106,6 @@
                     <div class="profile-form-action"><button class="profile-primary-button" type="submit">▣ &nbsp; Privát adatok mentése</button></div>
                 </form>
             </section>
-
-            @if(app()->environment('local'))
-                <section class="profile-devtool">
-                    <h3>🛠 DevTool – Szerepkör váltás</h3>
-                    <p>Jelenlegi szerepköröd: <strong>{{ $user->role ?? 'user' }}</strong></p>
-                    <div class="profile-role-actions">
-                        @foreach(['user' => '👤 Sima User', 'useradmin' => '🛡 UserAdmin', 'hostadmin' => '♛ HostAdmin'] as $role => $label)
-                            <form action="{{ route('profile.switch-role') }}" method="POST">@csrf<input type="hidden" name="role" value="{{ $role }}"><button class="{{ $user->role === $role ? 'active' : '' }}" type="submit">{{ $label }}</button></form>
-                        @endforeach
-                    </div>
-                </section>
-            @endif
 
             <section class="profile-panel notification-panel">
                 <h3>🔔 Értesítések</h3>

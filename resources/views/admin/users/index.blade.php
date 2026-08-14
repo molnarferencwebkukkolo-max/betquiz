@@ -39,7 +39,7 @@
         </div>
     @endif
 
-    <section class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-6">
+    <section class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-7">
         <div class="rounded-2xl bg-white p-5 shadow-sm">
             <div class="text-sm font-bold text-gray-500">Összes fiók</div>
             <div class="mt-1 text-3xl font-black text-gray-800">{{ number_format($stats['total']) }}</div>
@@ -63,6 +63,10 @@
         <div class="rounded-2xl bg-white p-5 shadow-sm">
             <div class="text-sm font-bold text-gray-500">Inaktív</div>
             <div class="mt-1 text-3xl font-black text-gray-500">{{ number_format($stats['inactive']) }}</div>
+        </div>
+        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            <div class="text-sm font-bold text-gray-500">Reklámmentes</div>
+            <div class="mt-1 text-3xl font-black text-purple-700">{{ number_format($stats['ad_free']) }}</div>
         </div>
     </section>
 
@@ -146,6 +150,9 @@
                                 @if($listedUser->is_banned)
                                     <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-extrabold text-red-700">Bannolt</span>
                                 @endif
+                                @if($listedUser->is_ad_free)
+                                    <span class="rounded-full bg-purple-100 px-3 py-1 text-xs font-extrabold text-purple-700">Reklámmentes</span>
+                                @endif
                             </div>
                         </td>
                         <td class="px-6 py-4">
@@ -212,6 +219,15 @@
                                 </div>
                             @else
                                 <div class="text-right text-xs font-bold text-gray-400">Nem módosítható</div>
+                            @endif
+                            @if($currentAdmin->isHostadmin())
+                                <form method="POST" action="{{ route('admin.users.status', $listedUser) }}" class="mt-2 flex justify-end">
+                                    @csrf @method('PATCH')
+                                    <input type="hidden" name="action" value="{{ $listedUser->is_ad_free ? 'disable_ad_free' : 'enable_ad_free' }}">
+                                    <button class="rounded-lg border border-purple-300 px-3 py-2 text-xs font-extrabold text-purple-700">
+                                        {{ $listedUser->is_ad_free ? 'Reklámok visszakapcsolása' : 'Reklámmentesség adása' }}
+                                    </button>
+                                </form>
                             @endif
                         </td>
                     </tr>

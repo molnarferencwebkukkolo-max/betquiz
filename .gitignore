@@ -7,6 +7,7 @@ database/database.before-*.sqlite
 .phpactor.json
 .phpunit.result.cache
 /.codex
+/.deploy
 /.cursor/
 /.idea
 /.nova
