@@ -461,6 +461,24 @@
                         {{ $questionText }}
                     </h2>
 
+                    <details class="mt-4 mb-5 rounded-2xl border border-rose-400/30 bg-rose-500/10 p-4 text-left">
+                        <summary class="cursor-pointer font-extrabold text-rose-200">Hibás a kérdés? Jelöld meg</summary>
+                        <p class="mt-3 text-sm leading-6 text-slate-300">
+                            Írd le pontosan a hibát. A kérdést a kivizsgálásig inaktiváljuk. Ha legalább 3 lezárt jelzésed van,
+                            és azok több mint 30%-a nem valós (FAKE), korlátozhatjuk a további hibajelzéseidet.
+                        </p>
+                        <form action="{{ route('quiz.questions.report', [$quiz, $currentQuestion]) }}" method="POST" class="mt-3 space-y-3"
+                              onsubmit="return confirm('Biztosan hibásnak jelölöd? A kérdés azonnal kikerül a játékból.');">
+                            @csrf
+                            <textarea name="reason" minlength="15" maxlength="1500" required rows="3"
+                                      class="w-full rounded-xl border border-slate-600 bg-slate-950/60 p-3 text-sm text-white"
+                                      placeholder="Mi hibás a kérdésben vagy a válaszokban?"></textarea>
+                            <button type="submit" class="rounded-xl border border-rose-400/40 bg-rose-500/20 px-4 py-2 text-sm font-extrabold text-rose-100 hover:bg-rose-500/30">
+                                Hibajelzés elküldése
+                            </button>
+                        </form>
+                    </details>
+
                     @php
                         $answersList = $currentQuestion->answers ?? $currentQuestion->options ?? [];
                     @endphp

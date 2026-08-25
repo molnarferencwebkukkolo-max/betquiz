@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Question extends Model
 {
@@ -72,6 +73,8 @@ class Question extends Model
 
     protected $casts = [
         'question_text' => 'array',
+        'is_approved' => 'boolean',
+        'is_active' => 'boolean',
     ];
 
     // 🎯 Ez a kapcsolat köti össze a Kérdést a Kvízzel:
@@ -88,6 +91,11 @@ class Question extends Model
     public function options()
     {
         return $this->hasMany(Option::class);
+    }
+
+    public function reports(): HasMany
+    {
+        return $this->hasMany(QuestionReport::class);
     }
 
 }

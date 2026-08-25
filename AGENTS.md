@@ -15,6 +15,7 @@
 
 ### Phase 1 - Working quizzes, registration, user management, and gameplay
 
+- NEXT FIRST: fix zero-valued question and answer text handling across creation, import, editing, preview, and gameplay. The string/number `0` is valid textual content and must never be treated as empty or replaced by the `Képes válasz` fallback; add regression coverage for both question and answer values.
 - NEXT FIRST: complete the production hardening and browser-level smoke test after the successful initial cPanel deployment:
   - verify emergency-hostadmin and normal login, registration with reCAPTCHA v3, Google OAuth, password reset, SMTP delivery, admin tools, content management, advertisements, uploads, quiz creation/import, gameplay, helpers, notifications, and responsive rendering on the live domain;
   - configure and verify the scheduler/cron for weekly reports;
@@ -60,6 +61,26 @@
 - Complete the competition-specific responsive design, result states, and administrative reporting.
 
 ## Work Log
+
+### 2026-08-25
+
+- Updated the homepage hero statistics to show the real counts for available public quizzes, questions waiting to be played, and active players.
+- Changed the homepage application preview to display three randomly selected quizzes from the ten most popular approved public quizzes.
+- Completed the gameplay question-error reporting and moderation workflow:
+  - players can report the current question with a required detailed reason;
+  - reported questions are immediately inactivated and skipped without counting as a correct or wrong answer;
+  - the quiz owner and every active useradmin and hostadmin receive an internal notification linking to the report queue;
+  - quiz owners, useradmins, and hostadmins can resolve reports as accepted-and-fixed or not genuine (`FAKE`);
+  - an accepted report can only be closed after the question has actually been edited;
+  - questions with multiple pending reports remain inactive until the final pending report is resolved;
+  - after at least three resolved reports, players whose `FAKE` rate exceeds 30% are prevented from submitting further reports;
+  - gameplay selection, setup counts, answer submission, and the alternate game service now consistently exclude inactive questions.
+- Added and ran the `question_reports` migration locally after creating an SQLite backup; `database/database.sqlite` contains the new schema.
+- Prepared a safe incremental production hotfix archive containing the changed application files and migration, without `.env`, secrets, tests, the local SQLite database, or a deployment endpoint.
+- Verification completed: the full suite passed with 129 tests and 566 assertions, Blade compilation succeeded, SQLite integrity is `ok`, and foreign-key checks reported zero violations.
+- DONE: homepage statistic labels/counts, randomized popular hero quizzes, question reporting, moderation notifications, inactive-question enforcement, FAKE-rate restriction, local migration, tests, and the uploadable hotfix package.
+- NOT DONE / TOMORROW FIRST: values containing exactly `0` are currently treated as empty in at least one question/answer rendering path and appear as `Képes válasz`. Treat string and numeric zero as valid content everywhere and add regression tests before the next production package.
+- DEPLOYMENT STATUS: the 2026-08-25 hotfix package is prepared locally but has not yet been uploaded, extracted, migrated, or smoke-tested on production.
 
 ### 2026-08-14
 

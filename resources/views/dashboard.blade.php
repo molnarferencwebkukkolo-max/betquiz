@@ -31,9 +31,9 @@
                     </a>
                 </div>
                 <div class="home-stats">
-                    <div><span class="home-stat-icon purple">◆</span><strong>{{ number_format($homeStats['quizzes'], 0, ',', ' ') }}+</strong><small>Aktív kvíz</small></div>
-                    <div><span class="home-stat-icon gold">👥</span><strong>{{ number_format($homeStats['players'], 0, ',', ' ') }}+</strong><small>Játékos</small></div>
-                    <div><span class="home-stat-icon green">🏆</span><strong>{{ number_format($homeStats['answers'], 0, ',', ' ') }}+</strong><small>Megadott válasz</small></div>
+                    <div><span class="home-stat-icon purple">◆</span><strong>{{ number_format($homeStats['quizzes'], 0, ',', ' ') }}+</strong><small>Elérhető kvízek</small></div>
+                    <div><span class="home-stat-icon gold">?</span><strong>{{ number_format($homeStats['questions'], 0, ',', ' ') }}+</strong><small>Ennyi kérdés vár</small></div>
+                    <div><span class="home-stat-icon green">👥</span><strong>{{ number_format($homeStats['players'], 0, ',', ' ') }}+</strong><small>Már ennyien játszanak</small></div>
                 </div>
             </div>
 
@@ -50,7 +50,7 @@
                 </div>
                 <div class="home-preview-heading"><strong>Ajánlott kvízek</strong><a href="{{ auth()->check() ? route('quizzes.index') : route('register') }}">Összes</a></div>
                 <div class="home-preview-quizzes">
-                    @forelse(($latestQuizzes ?? collect())->take(3) as $quiz)
+                    @forelse(($heroPopularQuizzes ?? collect()) as $quiz)
                         <a href="{{ auth()->check() ? route('quiz.setup', $quiz) : route('register') }}">
                             <span class="home-preview-cover" @if($quiz->cover_image) style="background-image:url('{{ asset('storage/'.$quiz->cover_image) }}')" @endif></span>
                             <strong>{{ Str::limit($quiz->title, 24) }}</strong>

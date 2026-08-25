@@ -64,7 +64,7 @@
 
                         @if(!empty($data['reason']))
                             <div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                                <p class="text-xs font-extrabold uppercase tracking-wide text-amber-700 mb-1">Adminisztrátori indok</p>
+                                <p class="text-xs font-extrabold uppercase tracking-wide text-amber-700 mb-1">{{ ($data['event'] ?? '') === 'question_reported' ? 'Játékosi hibaleírás' : 'Adminisztrátori indok' }}</p>
                                 <p class="text-sm font-semibold text-amber-950 whitespace-pre-line">{{ $data['reason'] }}</p>
                             </div>
                         @endif
@@ -72,7 +72,7 @@
                         <div class="mt-5 flex flex-wrap items-center gap-3">
                             @if(!empty($data['url']))
                                 <a href="{{ $data['url'] }}" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-700 text-white text-sm font-extrabold transition">
-                                    Kvíz megnyitása
+                                    {{ ($data['event'] ?? '') === 'question_reported' ? 'Hibajelzés kezelése' : 'Kvíz megnyitása' }}
                                 </a>
                             @endif
                             @unless($notification->read_at)

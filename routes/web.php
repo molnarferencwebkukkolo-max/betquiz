@@ -17,6 +17,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NotificationPreferenceController;
 use App\Http\Controllers\QuizHelperController;
+use App\Http\Controllers\QuestionReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -68,6 +69,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
         // Válasz beküldése (quiz.submit_answer)
         Route::post('/play/{quiz}/answer', [QuizController::class, 'submitAnswer'])->name('submit_answer');
+        Route::post('/play/{quiz}/questions/{question}/report', [QuestionReportController::class, 'store'])->name('questions.report');
 
         // Dobókocka mentőöv (quiz.roll_dice)
         Route::post('/play/{quiz}/roll-dice', [RollDiceController::class, 'rollDice'])->name('roll_dice');
@@ -108,6 +110,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->name('my-quizzes.questions.bulk-update');
 
     Route::resource('questions', QuestionController::class);
+    Route::get('/question-reports', [QuestionReportController::class, 'index'])->name('question-reports.index');
+    Route::patch('/question-reports/{questionReport}', [QuestionReportController::class, 'resolve'])->name('question-reports.resolve');
 
 
     // ------------------------------------------------------------------------

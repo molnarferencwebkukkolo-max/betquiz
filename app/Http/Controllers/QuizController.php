@@ -116,6 +116,20 @@ class QuizController extends Controller
             ->take(10)
             ->get();
 
+        // A hero előnézetben a tíz legnépszerűbb elérhető kvízből
+        // mutatunk hármat véletlenszerűen, hogy a kínálat ne legyen statikus.
+        $heroPopularQuizzes = Quiz::query()
+            ->where('status', 'approved')
+            ->where('is_public', true)
+            ->has('questions')
+            ->withCount('questions')
+            ->withSum('questions as total_answers', 'times_answered')
+            ->orderByDesc('total_answers')
+            ->take(10)
+            ->get()
+            ->shuffle()
+            ->take(3);
+
         $myQuizzes = $userId
             ? Quiz::where('creator_id', $userId)->with('category')->latest()->get()
             : collect();
@@ -124,8 +138,14 @@ class QuizController extends Controller
         // marketing-számokat. Ezek a kis aggregációk csak ezen az oldalon futnak.
         $homeStats = [
             'quizzes' => Quiz::query()->where('status', 'approved')->where('is_public', true)->count(),
+            // Csak a látogatók számára ténylegesen elérhető kvízek kérdései
+            // kerüljenek bele a főoldali összesítésbe.
+            'questions' => Question::query()
+                ->whereHas('quiz', fn ($query) => $query
+                    ->where('status', 'approved')
+                    ->where('is_public', true))
+                ->count(),
             'players' => User::query()->where('is_active', true)->count(),
-            'answers' => Question::query()->sum('times_answered'),
         ];
 
         return view('dashboard', compact(
@@ -137,6 +157,7 @@ class QuizController extends Controller
             'unplayedQuizzes',
             'categoryFavoriteQuizzes',
             'popularQuizzes',
+            'heroPopularQuizzes',
             'myQuizzes',
             'homeStats'
         ));
@@ -224,7 +245,7 @@ class QuizController extends Controller
         $quiz->loadSum('questions as total_answers', 'times_answered');
         $quiz->loadSum('questions as total_correct', 'times_correct');
 
-        $quizQuestionIds = $quiz->questions()->pluck('questions.id')->toArray();
+        $quizQuestionIds = $quiz->questions()->where('is_active', true)->pluck('questions.id')->toArray();
         $totalQuestionsCount = count($quizQuestionIds);
 
         // Kiszámoljuk a megválaszolt kérdéseket
@@ -441,7 +462,7 @@ class QuizController extends Controller
         $mode = $validated['game_mode'];
 
         // 🛡️ SZERVER OLDALI ELLENŐRZÉS: Van-e egyáltalán elég megválaszolatlan kérdés?
-        $quizQuestionIds = $quiz->questions()->pluck('questions.id')->toArray();
+        $quizQuestionIds = $quiz->questions()->where('is_active', true)->pluck('questions.id')->toArray();
         $answeredIds = DB::table('user_answers')
             ->where('user_id', $user->id)
             ->whereIn('question_id', $quizQuestionIds)
@@ -562,11 +583,12 @@ class QuizController extends Controller
         if ($currentQuestionId && !in_array((int)$currentQuestionId, $allExcludedIds, true)) {
             $currentQuestion = $quiz->questions()
                 ->where('questions.id', (int)$currentQuestionId)
+                ->where('is_active', true)
                 ->first();
         }
 
         // Kérdés lekérdezése a kizárásokkal
-        $query = $quiz->questions()->whereNotIn('questions.id', $allExcludedIds);
+        $query = $quiz->questions()->where('is_active', true)->whereNotIn('questions.id', $allExcludedIds);
 
         if ($game['difficulty'] !== 'mixed') {
             $query->where('difficulty', $game['difficulty']);
@@ -681,7 +703,8 @@ class QuizController extends Controller
         $selectedOptionId = $request->input('selected_option');
 
         $question = Question::find($questionId);
-        if (!$question) {
+        if (!$question || !$question->is_active || $question->quiz_id !== $quiz->id
+            || (int) ($game['current_question_id'] ?? 0) !== (int) $questionId) {
             return redirect()->route('quiz.play.screen', $quiz)->with('error', 'A kérdés nem található!');
         }
 

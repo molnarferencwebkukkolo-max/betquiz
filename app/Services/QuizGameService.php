@@ -19,7 +19,7 @@ class QuizGameService
         $this->pointService->deductBet(auth()->id(), $betAmount);
 
         // 2. Kérdések kiválasztása nehézség és darabszám alapján
-        $questionsQuery = $quiz->questions();
+        $questionsQuery = $quiz->questions()->where('is_active', true);
         if (Schema::hasColumn('questions', 'difficulty')) {
             $questionsQuery->where('difficulty', $difficulty);
         }
@@ -28,7 +28,7 @@ class QuizGameService
 
         // Fallback, ha nem volt elég kérdés az adott nehézségből
         if (count($questionIds) < $requestedCount) {
-            $questionIds = $quiz->questions()->inRandomOrder()->take($requestedCount)->pluck('id')->toArray();
+            $questionIds = $quiz->questions()->where('is_active', true)->inRandomOrder()->take($requestedCount)->pluck('id')->toArray();
         }
 
         $multipliers = ['easy' => 1.3, 'medium' => 1.5, 'hard' => 2.0];
@@ -60,7 +60,7 @@ class QuizGameService
         $currentIndex = $quizSession['current_index'];
         $questionId = $quizSession['question_ids'][$currentIndex];
 
-        $question = Question::with(['options', 'quiz'])->findOrFail($questionId);
+        $question = Question::with(['options', 'quiz'])->where('is_active', true)->findOrFail($questionId);
         $selectedOption = $question->options->firstWhere('id', $optionId);
 
         if (!$selectedOption) {

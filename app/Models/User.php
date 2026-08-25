@@ -106,6 +106,21 @@ class User extends Authenticatable
         return $this->hasMany(NotificationPreference::class);
     }
 
+    public function questionReports(): HasMany
+    {
+        return $this->hasMany(QuestionReport::class, 'reporter_id');
+    }
+
+    /** A legalább három lezárt jelzésből 30% feletti FAKE arány korlátozást jelent. */
+    public function questionReportStats(): array
+    {
+        $resolved = $this->questionReports()->whereIn('status', ['accepted', 'rejected'])->count();
+        $fake = $this->questionReports()->where('status', 'rejected')->count();
+        $rate = $resolved > 0 ? ($fake / $resolved) * 100 : 0.0;
+
+        return ['resolved' => $resolved, 'fake' => $fake, 'fake_rate' => $rate, 'restricted' => $resolved >= 3 && $rate > 30];
+    }
+
     public function favoriteCategory(): BelongsTo
     {
         return $this->belongsTo(Category::class, 'favorite_category_id');
