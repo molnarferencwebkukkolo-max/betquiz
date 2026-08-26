@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Category;
 use App\Models\Question;
 use App\Models\QuestionReport;
+use App\Models\Option;
 use App\Models\Quiz;
 use App\Models\User;
 use App\Notifications\QuestionReportedNotification;
@@ -33,6 +34,56 @@ class QuestionReportTest extends TestCase
         $this->assertFalse($question->fresh()->is_active);
         $this->assertDatabaseHas('question_reports', ['question_id' => $question->id, 'reporter_id' => $player->id, 'status' => 'pending']);
         Notification::assertSentTo([$owner, $useradmin, $hostadmin], QuestionReportedNotification::class);
+    }
+
+    public function test_report_enters_continuation_state_without_points_answers_or_statistics(): void
+    {
+        Notification::fake();
+        [$player, $owner, $question, $quiz] = $this->gameData();
+        $player->update(['points' => 500]);
+        $question->update(['times_answered' => 7, 'times_correct' => 4]);
+        $replacement = Question::create([
+            'quiz_id' => $quiz->id,
+            'category_id' => $quiz->category_id,
+            'difficulty' => 'medium',
+            'question_text' => ['hu' => 'Következő kérdés?'],
+            'is_approved' => true,
+            'is_active' => true,
+        ]);
+        Option::create(['question_id' => $replacement->id, 'option_text' => ['hu' => 'Igen'], 'is_correct' => true]);
+        Option::create(['question_id' => $replacement->id, 'option_text' => ['hu' => 'Nem'], 'is_correct' => false]);
+
+        $game = $this->gameSession($quiz, $question) + [
+            'game_mode' => 'normal',
+            'difficulty' => 'mixed',
+            'time_limit' => 30,
+            'time_modifier' => 1,
+            'initial_bet' => 10,
+            'target_count' => 10,
+        ];
+
+        $this->actingAs($player)
+            ->withSession(['game_session' => $game])
+            ->post(route('quiz.questions.report', [$quiz, $question]), [
+                'reason' => 'A kérdés megfogalmazása tényszerű hibát tartalmaz.',
+            ])
+            ->assertRedirect(route('quiz.play.screen', $quiz));
+
+        $this->assertSame(500, $player->fresh()->points);
+        $this->assertDatabaseCount('user_answers', 0);
+        $this->assertSame(7, $question->fresh()->times_answered);
+        $this->assertSame(4, $question->fresh()->times_correct);
+        $this->assertSame([], session('game_session.answered_ids'));
+        $this->assertTrue(session('game_session.awaiting_decision'));
+        $this->assertSame('question_reported', session('game_session.decision_type'));
+        $this->assertNull(session('game_session.current_question_id'));
+
+        $this->get(route('quiz.play.screen', $quiz))
+            ->assertOk()
+            ->assertSee('KÖSZÖNJÜK A JELZÉST!')
+            ->assertSee('nem számítottuk helyes vagy hibás válasznak')
+            ->assertSee('Következő kérdés')
+            ->assertDontSee('HELYES VÁLASZ!');
     }
 
     public function test_owner_can_mark_report_as_fake_and_reactivate_question(): void

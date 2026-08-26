@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\QuestionReport;
 use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class QuestionReportedNotification extends Notification
@@ -14,9 +15,29 @@ class QuestionReportedNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        // A hibajelzés operatív moderációs esemény, ezért minden
-        // jogosult címzett belső értesítést kap róla.
-        return ['database'];
+        $channels = [];
+        if ($notifiable->wantsNotification('question_reported', 'database')) {
+            $channels[] = 'database';
+        }
+        if ($notifiable->wantsNotification('question_reported', 'mail')) {
+            $channels[] = 'mail';
+        }
+
+        return $channels;
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        $question = $this->report->question;
+
+        return (new MailMessage)
+            ->subject('KwizzGo: Hibásnak jelölt kérdés')
+            ->greeting('Kedves '.($notifiable->username ?: $notifiable->name).'!')
+            ->line('Egy játékos hibát jelzett, ezért a kérdést a kivizsgálás idejére inaktiváltuk.')
+            ->line("Kvíz: {$question->quiz->title}")
+            ->line("Játékosi hibaleírás: {$this->report->reason}")
+            ->action('Hibajelzés kezelése', route('question-reports.index'))
+            ->line('Ezt az e-mailt a profilod értesítési beállításai alapján kaptad.');
     }
 
     public function toArray(object $notifiable): array

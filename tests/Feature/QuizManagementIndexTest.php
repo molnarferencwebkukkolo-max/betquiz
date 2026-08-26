@@ -125,6 +125,26 @@ class QuizManagementIndexTest extends TestCase
         $this->assertSame('Budapest', $question->options()->where('is_correct', true)->firstOrFail()->translated_text);
     }
 
+    public function test_csv_import_preserves_zero_question_and_answer_text(): void
+    {
+        $category = $this->makeCategory();
+        $admin = User::factory()->create(['role' => 'hostadmin']);
+        $quiz = $this->makeQuiz($admin, $category, 'Nullás CSV import', 'approved');
+        $csv = "question,option_1,option_2,option_3,option_4,correct_index\n"
+            ."0,0,Egy,,,1\n";
+
+        $this->actingAs($admin)
+            ->post(route('my-quizzes.questions.import', $quiz), [
+                'csv_file' => UploadedFile::fake()->createWithContent('zero.csv', $csv),
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success');
+
+        $question = Question::query()->where('quiz_id', $quiz->id)->firstOrFail();
+        $this->assertSame('0', $question->question_text['hu']);
+        $this->assertSame('0', $question->options()->orderBy('id')->firstOrFail()->translated_text);
+    }
+
     public function test_regular_user_cannot_create_quiz_without_enough_points(): void
     {
         $category = $this->makeCategory();

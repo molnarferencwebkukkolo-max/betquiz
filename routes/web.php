@@ -31,6 +31,9 @@ Route::get('/adatkezeles', [ContentPageController::class, 'short'])->defaults('s
 Route::get('/mediaajanlat', [ContentPageController::class, 'short'])->defaults('slug', 'mediaajanlat')->name('content.media-kit');
 Route::get('/llms.txt', [ContentPageController::class, 'llms'])->name('content.llms');
 Route::get('/sitemap.xml', [ContentPageController::class, 'sitemap'])->name('content.sitemap');
+// A megosztási URL szándékosan az auth csoporton kívül van, hogy a
+// közösségi oldalak robotjai is közvetlenül a kvíz metaadatait kapják.
+Route::get('/kviz/{quiz}', [QuizController::class, 'publicPreview'])->name('quizzes.share');
 Route::get('/oldal/{content:slug}.md', [ContentPageController::class, 'markdown'])->name('content.markdown');
 Route::get('/oldal/{content:slug}', [ContentPageController::class, 'show'])->name('content.show');
 Route::get('/cikkek', [ContentPageController::class, 'articles'])->name('articles.index');

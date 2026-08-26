@@ -12,11 +12,61 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use App\Services\QuizHelperService;
 
 class QuizController extends Controller
 {
     public function __construct(private PointService $pointService) {}
+
+    /**
+     * Nyilvános, bejelentkezést nem igénylő kvízelőnézet megosztáshoz.
+     *
+     * A privát vagy moderáció alatt álló kvízeket 404-gyel rejtjük el, így
+     * sem a robotok, sem egy kitalált URL nem szivárogtat ki nem publikus adatot.
+     */
+    public function publicPreview(Quiz $quiz)
+    {
+        abort_unless($quiz->status === 'approved' && $quiz->is_public, 404);
+
+        $quiz->load(['category', 'creator', 'tags'])
+            ->loadCount(['questions as active_questions_count' => fn ($query) => $query->where('is_active', true)])
+            ->loadSum('questions as total_answers', 'times_answered')
+            ->loadSum('questions as total_correct', 'times_correct');
+
+        $canonicalUrl = route('quizzes.share', $quiz);
+        $socialImage = $this->quizSocialImage($quiz);
+
+        return view('play.public-preview', compact('quiz', 'canonicalUrl', 'socialImage'));
+    }
+
+    /**
+     * Borító esetén a valós képméretet és MIME-t adjuk át az OG tageknek.
+     * Hiányzó vagy olvashatatlan fájlnál a stabil KwizzGo alapértelmezés marad.
+     */
+    private function quizSocialImage(Quiz $quiz): array
+    {
+        $fallback = [
+            'url' => asset('images/kwizzgo-social-default.svg'),
+            'width' => 1200,
+            'height' => 630,
+            'type' => 'image/svg+xml',
+        ];
+
+        if (! $quiz->cover_image || ! Storage::disk('public')->exists($quiz->cover_image)) {
+            return $fallback;
+        }
+
+        $path = Storage::disk('public')->path($quiz->cover_image);
+        $dimensions = @getimagesize($path);
+
+        return [
+            'url' => asset('storage/'.$quiz->cover_image),
+            'width' => $dimensions[0] ?? null,
+            'height' => $dimensions[1] ?? null,
+            'type' => $dimensions['mime'] ?? Storage::disk('public')->mimeType($quiz->cover_image),
+        ];
+    }
 
     /**
      * Műszerfal nézet (Főoldal - /dashboard)
@@ -803,6 +853,7 @@ class QuizController extends Controller
 
             // Várakozunk a következő gombnyomásra
             $game['awaiting_decision'] = true;
+            $game['decision_type'] = 'correct_answer';
 
             // 💾 KÖTELEZŐ SESSION MENTÉS
             session()->put('game_session', $game);
@@ -953,8 +1004,7 @@ class QuizController extends Controller
 
         // Feloldjuk a döntési állapotot
         $game['awaiting_decision'] = false;
-        unset($game['dice_result']);
-        unset($game['current_question_id']);
+        unset($game['decision_type'], $game['dice_result'], $game['current_question_id']);
         session()->put('game_session', $game);
 
         return redirect()->route('quiz.play.screen', $quiz);

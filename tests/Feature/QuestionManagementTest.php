@@ -53,6 +53,56 @@ class QuestionManagementTest extends TestCase
         $this->assertTrue($question->options()->orderBy('id')->skip(1)->first()->is_correct);
     }
 
+    public function test_zero_text_is_preserved_during_question_creation_and_editing(): void
+    {
+        [$question, $category, $owner] = $this->makeQuestion();
+
+        $this->actingAs($owner)->post(route('questions.storeForQuiz', $question->quiz), [
+            'question_text' => '0',
+            'options' => [
+                ['text' => '0', 'is_correct' => 1],
+                ['text' => 'Másik válasz', 'is_correct' => 0],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $createdQuestion = Question::query()
+            ->where('quiz_id', $question->quiz_id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame('0', $createdQuestion->question_text['hu']);
+        $this->assertSame('0', $createdQuestion->options()->orderBy('id')->firstOrFail()->translated_text);
+
+        $this->actingAs($owner)->put(route('questions.update', $question), [
+            'quiz_id' => $question->quiz_id,
+            'difficulty' => 'medium',
+            'question_text' => '0',
+            'correct_option' => 0,
+            'options' => [
+                ['text' => '0'],
+                ['text' => 'Másik válasz'],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('0', $question->fresh()->question_text['hu']);
+        $this->assertSame('0', $question->options()->orderBy('id')->firstOrFail()->fresh()->translated_text);
+    }
+
+    public function test_admin_preview_renders_zero_text_without_image_fallback(): void
+    {
+        [$question] = $this->makeQuestion();
+        $admin = User::factory()->create(['role' => 'hostadmin']);
+        $question->update(['question_text' => ['hu' => '0']]);
+        $question->options()->orderBy('id')->firstOrFail()->update(['option_text' => ['hu' => '0']]);
+
+        $this->actingAs($admin)
+            ->get(route('my-quizzes.preview', $question->quiz))
+            ->assertOk()
+            ->assertSee('>0</h2>', false)
+            ->assertSee('<span>0</span>', false)
+            ->assertDontSee('Képes válasz');
+    }
+
     public function test_unrelated_user_cannot_edit_or_update_question(): void
     {
         [$question, $category] = $this->makeQuestion();

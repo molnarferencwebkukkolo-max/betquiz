@@ -4,4 +4,5 @@
 <url><loc>{{ route('quizzes.index') }}</loc><lastmod>{{ now()->toAtomString() }}</lastmod><priority>0.8</priority></url>
 <url><loc>{{ route('articles.index') }}</loc><lastmod>{{ now()->toAtomString() }}</lastmod><priority>0.6</priority></url>
 @foreach($contents as $content)<url><loc>{{ $content->publicUrl() }}</loc><lastmod>{{ $content->updated_at->toAtomString() }}</lastmod><priority>{{ number_format($content->sitemap_priority, 1, '.', '') }}</priority></url>@endforeach
+@foreach($quizzes as $quiz)<url><loc>{{ route('quizzes.share', $quiz) }}</loc><lastmod>{{ $quiz->updated_at->toAtomString() }}</lastmod><priority>0.7</priority></url>@endforeach
 </urlset>

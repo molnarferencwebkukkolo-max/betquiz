@@ -10,6 +10,7 @@ use App\Notifications\QuestionReportedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -49,11 +50,26 @@ class QuestionReportController extends Controller
             ->where('is_active', true)->where('is_banned', false)
             ->where(fn ($query) => $query->where('id', $quiz->creator_id)->orWhereIn('role', ['useradmin', 'hostadmin']))
             ->get()->unique('id');
-        $recipients->each(fn (User $recipient) => $recipient->notify(new QuestionReportedNotification($report)));
+        // A moderátori értesítés fontos, de egy levelezési/adatbázis-csatorna
+        // hibája nem teheti sikertelenné a már rögzített játékosi jelentést.
+        $recipients->each(function (User $recipient) use ($report): void {
+            try {
+                $recipient->notify(new QuestionReportedNotification($report));
+            } catch (\Throwable $exception) {
+                Log::error('A kérdéshiba-jelentés értesítése nem volt kézbesíthető.', [
+                    'question_report_id' => $report->id,
+                    'recipient_id' => $recipient->id,
+                    'exception' => $exception,
+                ]);
+            }
+        });
 
-        // A jelentett kérdést átugorjuk, de nem számítjuk helyes vagy hibás válasznak.
-        $game['answered_ids'][] = $question->id;
-        $game['answered_ids'] = array_values(array_unique($game['answered_ids']));
+        // A jelentett kérdés inaktívként automatikusan kiesik a következő
+        // választásból. Nem kerülhet az answered_ids közé, mert akkor valódi
+        // válasz nélkül növelné a játék előrehaladását.
+        $game['awaiting_decision'] = true;
+        $game['decision_type'] = 'question_reported';
+        $game['won_amount'] = 0;
         unset($game['current_question_id'], $game['helper_results']);
         $request->session()->put('game_session', $game);
 

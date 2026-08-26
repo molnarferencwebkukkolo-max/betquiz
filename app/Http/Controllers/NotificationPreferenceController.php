@@ -22,8 +22,10 @@ class NotificationPreferenceController extends Controller
 
         $submittedPreferences = collect($validated['preferences'] ?? [])->keyBy('event');
 
-        DB::transaction(function () use ($request, $submittedPreferences): void {
-            foreach (NotificationPreference::EVENTS as $event => $label) {
+        $availableEvents = NotificationPreference::eventsFor($request->user());
+
+        DB::transaction(function () use ($request, $submittedPreferences, $availableEvents): void {
+            foreach ($availableEvents as $event => $label) {
                 $submitted = $submittedPreferences->get($event, []);
 
                 $request->user()->notificationPreferences()->updateOrCreate(

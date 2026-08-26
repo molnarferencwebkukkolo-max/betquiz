@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">KwizzGo</title>
+  <desc id="description">Játssz, tanulj és győzz a KwizzGo közösségi kvízplatformon.</desc>
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#18052f"/><stop offset="1" stop-color="#4b1677"/></linearGradient></defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1020" cy="95" r="220" fill="#f4c84a" opacity=".12"/><circle cx="140" cy="610" r="260" fill="#8b5cf6" opacity=".18"/>
+  <text x="600" y="300" text-anchor="middle" fill="#fff" font-family="Arial,sans-serif" font-size="128" font-weight="800">Kwizz<tspan fill="#f4c84a">Go</tspan></text>
+  <text x="600" y="390" text-anchor="middle" fill="#e8def5" font-family="Arial,sans-serif" font-size="38">Játssz. Tanulj. Győzz.</text>
+</svg>

@@ -111,7 +111,7 @@ class ProfileController extends Controller
 
         return view('profile.show', [
             'user' => $user,
-            'notificationEvents' => NotificationPreference::EVENTS,
+            'notificationEvents' => NotificationPreference::eventsFor($user),
             'notificationPreferences' => $notificationPreferences,
             'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(),
             'profileStats' => [

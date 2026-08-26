@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Tag;
 use App\Models\User;
 use App\Notifications\QuizModerationNotification;
+use App\Services\AdminNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,10 @@ use Illuminate\Validation\ValidationException;
 class QuizManagementController extends Controller
 {
     private const QUIZ_CREATION_COST = 50000;
+
+    public function __construct(private readonly AdminNotificationService $adminNotifications)
+    {
+    }
 
     /**
      * Kvízek listázása (KVÍZEIM / Saját kvízek + Admin bíráló lista)
@@ -123,6 +128,11 @@ class QuizManagementController extends Controller
         $quizIds = array_values(array_unique(array_map('intval', $validated['quiz_ids'])));
         $moderationReason = trim((string) ($validated['moderation_reason'] ?? ''));
         $quizzes = Quiz::query()->with('creator')->whereIn('id', $quizIds)->get();
+        // A tömeges jóváhagyás csak a valódi állapotváltásokból küldhet
+        // super-admin auditértesítést, így egy ismételt kérés nem duplikál.
+        $newlyApprovedQuizzes = $validated['bulk_action'] === 'approve'
+            ? $quizzes->where('status', '!=', 'approved')
+            : collect();
         $changes = match ($validated['bulk_action']) {
             'approve' => ['status' => 'approved', 'rejection_reason' => null],
             'reject' => [
@@ -183,6 +193,12 @@ class QuizManagementController extends Controller
                 : null;
 
             $quizzes->each(fn (Quiz $quiz) => $this->notifyQuizOwner($quiz, $notificationEvent, $reason));
+        }
+
+        if ($validated['bulk_action'] === 'approve') {
+            $newlyApprovedQuizzes->each(
+                fn (Quiz $quiz) => $this->adminNotifications->quizApproved($quiz, $request->user())
+            );
         }
 
         return back()->with('success', "{$updatedCount} kvíz tömeges módosítása elkészült.");
@@ -305,6 +321,12 @@ class QuizManagementController extends Controller
         $successMessage = $quiz->status === 'approved'
             ? 'Kvíz sikeresen létrehozva! Most már egyenként vagy CSV-ből is feltöltheted a kérdéseket.'
             : 'Kvíz koncepció sikeresen benyújtva! Adminisztrátori jóváhagyás után kezdheted meg a további kérdések feltöltését.';
+
+        if ($quiz->status === 'pending') {
+            $this->adminNotifications->quizSubmitted($quiz);
+        } else {
+            $this->adminNotifications->quizApproved($quiz, $request->user());
+        }
 
         return redirect()->route('my-quizzes.show', $quiz)
             ->with('success', $successMessage);
@@ -492,12 +514,16 @@ class QuizManagementController extends Controller
             abort(403, 'Csak adminisztrátor hagyhatja jóvá a kvízt.');
         }
 
+        $isNewApproval = $quiz->status !== 'approved';
         $quiz->update([
             'status' => 'approved',
             'rejection_reason' => null,
         ]);
 
-        $this->notifyQuizOwner($quiz, 'approved');
+        if ($isNewApproval) {
+            $this->notifyQuizOwner($quiz, 'approved');
+            $this->adminNotifications->quizApproved($quiz, $user);
+        }
 
         return back()->with('success', 'Kvíz koncepció jóváhagyva! A készítő mostantól feltöltheti a maradék kérdéseket (100 db-ig).');
     }

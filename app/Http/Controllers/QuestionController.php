@@ -143,8 +143,13 @@ class QuestionController extends Controller
         while (($data = fgetcsv($handle, 0, $delimiter)) !== false) {
             $rowNumber++;
 
-            // ÜRES SOROK KISZŰRÉSE
-            if (empty(array_filter($data, 'trim'))) {
+            // Csak a valóban üres sort hagyjuk ki. Az array_filter itt nem
+            // használható, mert a "0" érvényes kérdés- és válaszszöveg, PHP
+            // viszont hamis értékként szűrné ki.
+            $isCompletelyEmptyRow = collect($data)
+                ->every(fn ($value) => trim((string) $value) === '');
+
+            if ($isCompletelyEmptyRow) {
                 continue;
             }
 

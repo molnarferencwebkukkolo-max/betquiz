@@ -86,7 +86,9 @@
                                     <img src="{{ asset('storage/'.$option->image_path) }}" alt=""
                                          class="w-full h-32 object-contain rounded-xl bg-gray-50 mb-3">
                                 @endif
-                                <span>{{ $optionText ?: 'Képes válasz' }}</span>
+                                {{-- A "0" érvényes válaszszöveg, ezért csak a
+                                     ténylegesen üres érték kap helyettesítő szöveget. --}}
+                                <span>{{ filled($optionText) ? $optionText : 'Képes válasz' }}</span>
                             </button>
                         @endforeach
                     </div>

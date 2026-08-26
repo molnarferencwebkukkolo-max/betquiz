@@ -116,6 +116,42 @@ class QuizHelperTest extends TestCase
         $this->assertSame($firstOrder, session("game_session.answer_orders.{$question->id}"));
     }
 
+    public function test_gameplay_renders_zero_question_and_answer_text(): void
+    {
+        [$user, $quiz, $question] = $this->game();
+        $question->update(['question_text' => ['hu' => '0']]);
+        $question->options()->orderBy('id')->firstOrFail()->update(['option_text' => ['hu' => '0']]);
+
+        $this->withSession(['game_session' => $this->gameSession($quiz, $question)])
+            ->actingAs($user)
+            ->get(route('quiz.play.screen', $quiz))
+            ->assertOk()
+            ->assertSeeInOrder([
+                'class="question-title"',
+                '0',
+                'class="answer-copy"',
+                '0',
+            ], false)
+            ->assertDontSee('Képes válasz');
+    }
+
+    public function test_gameplay_controls_follow_the_required_user_facing_order(): void
+    {
+        [$user, $quiz, $question] = $this->game();
+
+        $this->withSession(['game_session' => $this->gameSession($quiz, $question)])
+            ->actingAs($user)
+            ->get(route('quiz.play.screen', $quiz))
+            ->assertOk()
+            ->assertSeeInOrder([
+                'class="question-title"',
+                'class="answer-grid"',
+                'class="answer-submit-button"',
+                'class="helper-section-heading"',
+                'class="question-report-control',
+            ], false);
+    }
+
     public function test_failed_dice_result_stays_on_the_game_screen_until_user_leaves(): void
     {
         [$user, $quiz, $question] = $this->game();

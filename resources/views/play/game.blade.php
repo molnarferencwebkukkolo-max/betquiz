@@ -102,18 +102,28 @@
                 @endif
             </div>
 
-            {{-- 1. ESET: HELYES VÁLASZ UTÁNI DÖNTÉSI KÉPERNYŐ (NORMÁL ÉS ODDS MÓDBAN IS) --}}
+            {{-- 1. ESET: HELYES VÁLASZ VAGY HIBAJELENTÉS UTÁNI DÖNTÉSI KÉPERNYŐ --}}
             @if(!empty($game['awaiting_decision']))
+                @php
+                    $isQuestionReportDecision = ($game['decision_type'] ?? 'correct_answer') === 'question_reported';
+                @endphp
                 <div class="game-decision-with-ad">
-                <div class="bg-gradient-to-br from-emerald-900 via-teal-950 to-slate-900 text-white rounded-3xl p-8 text-center shadow-2xl mb-6 border border-emerald-500/30">
+                <div class="bg-gradient-to-br {{ $isQuestionReportDecision ? 'from-violet-950 via-slate-950 to-slate-900 border-violet-500/30' : 'from-emerald-900 via-teal-950 to-slate-900 border-emerald-500/30' }} text-white rounded-3xl p-8 text-center shadow-2xl mb-6 border">
 
-                    <div class="w-16 h-16 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 animate-bounce">
-                        🎉
+                    <div class="w-16 h-16 {{ $isQuestionReportDecision ? 'bg-violet-500/20 text-violet-300 border-violet-500/40' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' }} border rounded-full flex items-center justify-center text-3xl mx-auto mb-4 animate-bounce">
+                        {{ $isQuestionReportDecision ? '🛠️' : '🎉' }}
                     </div>
 
-                    <h3 class="text-3xl font-black mb-2">HELYES VÁLASZ!</h3>
+                    <h3 class="text-3xl font-black mb-2">{{ $isQuestionReportDecision ? 'KÖSZÖNJÜK A JELZÉST!' : 'HELYES VÁLASZ!' }}</h3>
 
-                    @if($game['game_mode'] === 'normal')
+                    @if($isQuestionReportDecision)
+                        <p class="text-violet-200 text-lg mb-4">
+                            A kérdést kivettük a játékból a kivizsgálás idejére. A jelzésért nem jár pont, és nem számítottuk helyes vagy hibás válasznak.
+                        </p>
+                        <div class="bg-slate-900/60 rounded-2xl p-4 mb-8 max-w-md mx-auto border border-violet-500/20">
+                            <p class="text-slate-300 text-sm">A jelenlegi játékod megmaradt, folytathatod egy másik kérdéssel.</p>
+                        </div>
+                    @elseif($game['game_mode'] === 'normal')
                         <p class="text-emerald-200 text-lg mb-4">
                             Ebben a körben nyertél: <strong class="text-amber-400 font-black text-2xl">+{{ $game['won_amount'] }} PT-t</strong>!
                         </p>
@@ -461,28 +471,40 @@
                         {{ $questionText }}
                     </h2>
 
-                    <details class="mt-4 mb-5 rounded-2xl border border-rose-400/30 bg-rose-500/10 p-4 text-left">
-                        <summary class="cursor-pointer font-extrabold text-rose-200">Hibás a kérdés? Jelöld meg</summary>
-                        <p class="mt-3 text-sm leading-6 text-slate-300">
-                            Írd le pontosan a hibát. A kérdést a kivizsgálásig inaktiváljuk. Ha legalább 3 lezárt jelzésed van,
-                            és azok több mint 30%-a nem valós (FAKE), korlátozhatjuk a további hibajelzéseidet.
-                        </p>
-                        <form action="{{ route('quiz.questions.report', [$quiz, $currentQuestion]) }}" method="POST" class="mt-3 space-y-3"
-                              onsubmit="return confirm('Biztosan hibásnak jelölöd? A kérdés azonnal kikerül a játékból.');">
-                            @csrf
-                            <textarea name="reason" minlength="15" maxlength="1500" required rows="3"
-                                      class="w-full rounded-xl border border-slate-600 bg-slate-950/60 p-3 text-sm text-white"
-                                      placeholder="Mi hibás a kérdésben vagy a válaszokban?"></textarea>
-                            <button type="submit" class="rounded-xl border border-rose-400/40 bg-rose-500/20 px-4 py-2 text-sm font-extrabold text-rose-100 hover:bg-rose-500/30">
-                                Hibajelzés elküldése
-                            </button>
-                        </form>
-                    </details>
-
                     @php
                         $answersList = $currentQuestion->answers ?? $currentQuestion->options ?? [];
                     @endphp
 
+                    {{-- VÁLASZ LEHETŐSÉGEK FORM --}}
+                    <form id="game-form" action="{{ route('quiz.submit_answer', $quiz) }}" method="POST">
+                        @csrf
+                        <input type="hidden" name="question_id" value="{{ $currentQuestion->id }}">
+
+                        <div class="answer-grid">
+                            @foreach($answersList as $index => $answer)
+                                @php
+                                    $answerText = is_object($answer) ? $answer->option_text : ($answer['option_text'] ?? '');
+                                    if (is_array($answerText)) {
+                                        $answerText = $answerText['hu'] ?? $answerText['en'] ?? reset($answerText);
+                                    }
+                                @endphp
+                                <label class="answer-option {{ in_array((int)(is_object($answer)?$answer->id:$answer['id']), $game['helper_results']['fifty_fifty'] ?? [], true) ? 'helper-eliminated' : '' }}">
+                                    <input type="radio" name="selected_option" value="{{ is_object($answer) ? $answer->id : ($answer['id'] ?? $index) }}" required>
+                                    <span class="answer-letter">{{ chr(65 + $index) }}</span>
+                                    <span class="answer-copy">
+                                        {{ $answerText }}
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
+
+                        <button type="submit" class="answer-submit-button">
+                            Válasz beküldése ➔
+                        </button>
+                    </form>
+
+                    {{-- A segítségek szándékosan csak a válaszblokk után
+                         következnek minden reszponzív törésponton. --}}
                     <div class="helper-section-heading"><span>✨</span><div><strong>Segítségek</strong><small>3-3 ingyenes használat, utána 100 PT</small></div></div>
                     <div class="quiz-helper-toolbar">
                         @php
@@ -517,33 +539,24 @@
                         </div>
                     @endif
 
-                    {{-- VÁLASZ LEHETŐSÉGEK FORM --}}
-                    <form id="game-form" action="{{ route('quiz.submit_answer', $quiz) }}" method="POST">
-                        @csrf
-                        <input type="hidden" name="question_id" value="{{ $currentQuestion->id }}">
-
-                        <div class="answer-grid">
-                            @foreach($answersList as $index => $answer)
-                                @php
-                                    $answerText = is_object($answer) ? $answer->option_text : ($answer['option_text'] ?? '');
-                                    if (is_array($answerText)) {
-                                        $answerText = $answerText['hu'] ?? $answerText['en'] ?? reset($answerText);
-                                    }
-                                @endphp
-                                <label class="answer-option {{ in_array((int)(is_object($answer)?$answer->id:$answer['id']), $game['helper_results']['fifty_fifty'] ?? [], true) ? 'helper-eliminated' : '' }}">
-                                    <input type="radio" name="selected_option" value="{{ is_object($answer) ? $answer->id : ($answer['id'] ?? $index) }}" required>
-                                    <span class="answer-letter">{{ chr(65 + $index) }}</span>
-                                    <span class="answer-copy">
-                                        {{ $answerText }}
-                                    </span>
-                                </label>
-                            @endforeach
-                        </div>
-
-                        <button type="submit" class="answer-submit-button">
-                            Válasz beküldése ➔
-                        </button>
-                    </form>
+                    {{-- A hibajelentés a képernyő utolsó, másodlagos művelete. --}}
+                    <details class="question-report-control mt-6 rounded-2xl border border-rose-400/30 bg-rose-500/10 p-4 text-left">
+                        <summary class="cursor-pointer font-extrabold text-rose-200">Hibás a kérdés? Jelöld meg</summary>
+                        <p class="mt-3 text-sm leading-6 text-slate-300">
+                            Írd le pontosan a hibát. A kérdést a kivizsgálásig inaktiváljuk. Ha legalább 3 lezárt jelzésed van,
+                            és azok több mint 30%-a nem valós (FAKE), korlátozhatjuk a további hibajelzéseidet.
+                        </p>
+                        <form action="{{ route('quiz.questions.report', [$quiz, $currentQuestion]) }}" method="POST" class="mt-3 space-y-3"
+                              onsubmit="return confirm('Biztosan hibásnak jelölöd? A kérdés azonnal kikerül a játékból.');">
+                            @csrf
+                            <textarea name="reason" minlength="15" maxlength="1500" required rows="3"
+                                      class="w-full rounded-xl border border-slate-600 bg-slate-950/60 p-3 text-sm text-white"
+                                      placeholder="Mi hibás a kérdésben vagy a válaszokban?"></textarea>
+                            <button type="submit" class="rounded-xl border border-rose-400/40 bg-rose-500/20 px-4 py-2 text-sm font-extrabold text-rose-100 hover:bg-rose-500/30">
+                                Hibajelzés elküldése
+                            </button>
+                        </form>
+                    </details>
                 </div>
             @endif
 

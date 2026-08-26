@@ -116,7 +116,7 @@
                         @foreach($notificationEvents as $event => $label)
                             @php($preference = $notificationPreferences->get($event))
                             <div class="notification-preference-row">
-                                <div><strong>{{ $label }}</strong>@if($event === 'weekly_report')<small>Hetenként összefoglalót kapsz az előző heti eredményeidről.</small>@elseif($event === 'marketing')<small>Kampányok, ajánlatok és ajándék PT-lehetőségek. A kampányoldalak megtekintéséért ajándék PT járhat.</small>@endif</div>
+                                <div><strong>{{ $label }}</strong>@if($event === 'weekly_report')<small>Hetenként összefoglalót kapsz az előző heti eredményeidről.</small>@elseif($event === 'marketing')<small>Kampányok, ajánlatok és ajándék PT-lehetőségek. A kampányoldalak megtekintéséért ajándék PT járhat.</small>@elseif(in_array($event, ['user_registered','quiz_submitted','quiz_approved','question_reported'], true))<small>Azonnali adminisztratív értesítés; az e-mail külön bekapcsolható.</small>@endif</div>
                                 <input type="hidden" name="preferences[{{ $event }}][event]" value="{{ $event }}">
                                 @if(\App\Models\NotificationPreference::supportsChannel($event, 'database'))
                                     <label class="notification-channel-toggle"><input type="checkbox" name="preferences[{{ $event }}][database]" value="1" @checked(old("preferences.{$event}.database", $preference?->database_enabled ?? true))><span class="sr-only">{{ $label }} – belső</span></label>

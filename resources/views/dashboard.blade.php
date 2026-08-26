@@ -51,7 +51,7 @@
                 <div class="home-preview-heading"><strong>Ajánlott kvízek</strong><a href="{{ auth()->check() ? route('quizzes.index') : route('register') }}">Összes</a></div>
                 <div class="home-preview-quizzes">
                     @forelse(($heroPopularQuizzes ?? collect()) as $quiz)
-                        <a href="{{ auth()->check() ? route('quiz.setup', $quiz) : route('register') }}">
+                        <a href="{{ auth()->check() ? route('quiz.setup', $quiz) : route('quizzes.share', $quiz) }}">
                             <span class="home-preview-cover" @if($quiz->cover_image) style="background-image:url('{{ asset('storage/'.$quiz->cover_image) }}')" @endif></span>
                             <strong>{{ Str::limit($quiz->title, 24) }}</strong>
                             <small>{{ $quiz->questions_count }} kérdés · ⭐ {{ number_format($quiz->totalAnswersCount()) }}</small>

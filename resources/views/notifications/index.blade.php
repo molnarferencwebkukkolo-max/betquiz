@@ -53,7 +53,7 @@
                                         <span class="rounded-full bg-indigo-600 px-2 py-0.5 text-[0.65rem] font-extrabold uppercase text-white">Új</span>
                                     @endunless
                                 </div>
-                                <p class="mt-1 text-sm font-bold text-indigo-700">{{ $data['quiz_title'] ?? '' }}</p>
+                                <p class="mt-1 text-sm font-bold text-indigo-700">{{ $data['quiz_title'] ?? $data['context_label'] ?? '' }}</p>
                             </div>
                             <time class="text-xs font-semibold text-slate-400" datetime="{{ $notification->created_at->toIso8601String() }}">
                                 {{ $notification->created_at->diffForHumans() }}
@@ -72,7 +72,12 @@
                         <div class="mt-5 flex flex-wrap items-center gap-3">
                             @if(!empty($data['url']))
                                 <a href="{{ $data['url'] }}" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-700 text-white text-sm font-extrabold transition">
-                                    {{ ($data['event'] ?? '') === 'question_reported' ? 'Hibajelzés kezelése' : 'Kvíz megnyitása' }}
+                                    @switch($data['event'] ?? '')
+                                        @case('question_reported') Hibajelzés kezelése @break
+                                        @case('user_registered') Felhasználó megnyitása @break
+                                        @case('quiz_submitted') Kvízigény megnyitása @break
+                                        @default Kvíz megnyitása
+                                    @endswitch
                                 </a>
                             @endif
                             @unless($notification->read_at)

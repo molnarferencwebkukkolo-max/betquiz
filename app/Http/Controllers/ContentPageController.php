@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Content;
+use App\Models\Quiz;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 
@@ -74,7 +75,9 @@ class ContentPageController extends Controller
     public function sitemap(): Response
     {
         $contents = Content::query()->publiclyVisible()->where('sitemap_include', true)->get();
+        // Csak a ténylegesen látható kvízek kerülhetnek keresőrobot elé.
+        $quizzes = Quiz::query()->where('status', 'approved')->where('is_public', true)->get(['id', 'slug', 'updated_at']);
 
-        return response()->view('content.sitemap', compact('contents'), 200, ['Content-Type' => 'application/xml; charset=UTF-8']);
+        return response()->view('content.sitemap', compact('contents', 'quizzes'), 200, ['Content-Type' => 'application/xml; charset=UTF-8']);
     }
 }
