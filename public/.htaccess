@@ -5,6 +5,12 @@
 
     RewriteEngine On
 
+    # Productionben minden nyilvános kérés HTTPS-en fusson. A proxy fejléc
+    # ellenőrzése megakadályozza az átirányítási hurkot CDN/proxy mögött.
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]

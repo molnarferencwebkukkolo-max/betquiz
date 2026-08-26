@@ -62,6 +62,12 @@
                                         <span class="rounded-full px-2 py-1 {{ $advertisement->is_active ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-500/15 text-slate-400' }}">{{ $advertisement->is_active ? 'Aktív' : 'Inaktív' }}</span>
                                         <span class="rounded-full bg-purple-500/15 px-2 py-1 text-purple-300">Súly: {{ $advertisement->weight }}</span>
                                         @foreach($advertisement->placements as $placement)<span class="rounded-full bg-slate-500/15 px-2 py-1 text-slate-300">{{ $placement->name }}</span>@endforeach
+                                        @if($advertisement->categories->isEmpty() && $advertisement->quizzes->isEmpty())
+                                            <span class="rounded-full bg-emerald-500/15 px-2 py-1 text-emerald-300">Mindenhol</span>
+                                        @else
+                                            @foreach($advertisement->categories as $category)<span class="rounded-full bg-amber-500/15 px-2 py-1 text-amber-300">{{ $category->translated_name }}</span>@endforeach
+                                            @foreach($advertisement->quizzes as $targetQuiz)<span class="rounded-full bg-cyan-500/15 px-2 py-1 text-cyan-300">{{ $targetQuiz->title }}</span>@endforeach
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -100,6 +106,17 @@
             });
         };
         form.querySelector('[name="type"]')?.addEventListener('change', refresh);
+
+        // Kliensoldali keresés: a kiválasztott opciókat akkor is megtartjuk,
+        // amikor a keresési kifejezés miatt ideiglenesen elrejtjük őket.
+        const quizFilter = form.querySelector('[data-ad-quiz-filter]');
+        const quizSelect = form.querySelector('[data-ad-quiz-select]');
+        quizFilter?.addEventListener('input', () => {
+            const needle = quizFilter.value.trim().toLocaleLowerCase('hu');
+            Array.from(quizSelect?.options ?? []).forEach((option) => {
+                option.hidden = needle !== '' && !option.text.toLocaleLowerCase('hu').includes(needle) && !option.selected;
+            });
+        });
         refresh();
     });
 </script>

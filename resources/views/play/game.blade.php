@@ -171,7 +171,7 @@
                     </div>
 
                 </div>
-                    <x-ad-slot position="game_decision_square" />
+                    <x-ad-slot position="game_decision_square" :category-id="$quiz->category_id" :quiz-id="$quiz->id" />
                 </div>
 
                 {{-- 2. ESET: ROSSZ VÁLASZ UTÁN ➔ KOCKADOBÁS MENTŐÖV --}}

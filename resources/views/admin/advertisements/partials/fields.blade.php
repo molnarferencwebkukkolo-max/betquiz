@@ -1,5 +1,7 @@
 @php($selectedPlacements = collect(old('placements', $advertisement?->placements->pluck('id')->all() ?? []))->map(fn ($id) => (int) $id)->all())
 @php($selectedType = old('type', $advertisement?->type ?? 'image'))
+@php($selectedCategories = collect(old('categories', $advertisement?->categories->pluck('id')->all() ?? []))->map(fn ($id) => (int) $id)->all())
+@php($selectedQuizzes = collect(old('quizzes', $advertisement?->quizzes->pluck('id')->all() ?? []))->map(fn ($id) => (int) $id)->all())
 
 <label class="block">
     <span class="ad-field-label">Belső név</span>
@@ -39,6 +41,32 @@
                 <span><strong class="block text-sm text-white">{{ $placement->name }}</strong><small class="text-slate-500">{{ $placement->description }}</small></span>
             </label>
         @endforeach
+    </div>
+</fieldset>
+
+<fieldset class="rounded-xl border border-slate-700 p-4 lg:col-span-2">
+    <legend class="px-2 text-xs font-black uppercase tracking-wide text-slate-400">Opcionális célzás</legend>
+    <p class="mb-4 text-sm text-slate-400">Ha sem kategóriát, sem kvízt nem választasz, a hirdetés mindenhol megjelenhet. Kijelölés esetén kizárólag az egyező kategóriákban vagy konkrét kvízekben vesz részt a rotációban.</p>
+    <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <label class="block">
+            <span class="ad-field-label">Kategóriák</span>
+            <select name="categories[]" multiple size="8" class="min-h-48">
+                @foreach($categories as $category)
+                    <option value="{{ $category->id }}" @selected(in_array($category->id, $selectedCategories, true))>{{ $category->icon }} {{ $category->translated_name }}</option>
+                @endforeach
+            </select>
+            <small class="mt-2 block text-slate-500">Több elemhez Ctrl/Cmd + kattintás használható.</small>
+        </label>
+        <label class="block">
+            <span class="ad-field-label">Konkrét kvízek</span>
+            <input type="search" data-ad-quiz-filter placeholder="Kvíz keresése…" class="mb-2">
+            <select name="quizzes[]" multiple size="8" class="min-h-48" data-ad-quiz-select>
+                @foreach($quizzes as $quizOption)
+                    <option value="{{ $quizOption->id }}" @selected(in_array($quizOption->id, $selectedQuizzes, true))>{{ $quizOption->title }} — {{ $quizOption->category?->translated_name ?? 'Nincs kategória' }}</option>
+                @endforeach
+            </select>
+            <small class="mt-2 block text-slate-500">A keresés nem törli a már kijelölt kvízeket.</small>
+        </label>
     </div>
 </fieldset>
 

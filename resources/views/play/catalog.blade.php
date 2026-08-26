@@ -23,7 +23,7 @@
         </form>
     </section>
 
-    <x-ad-slot position="content_horizontal" />
+    <x-ad-slot position="content_horizontal" :category-id="is_numeric(request('category_id')) ? (int) request('category_id') : null" />
 
     <div class="catalog-content-with-sidebar">
     <div class="catalog-results-main">
@@ -57,7 +57,7 @@
         <div class="catalog-pagination">{{ $quizzes->links() }}</div>
     @endif
     </div>
-    <x-ad-slot position="right_sidebar" />
+    <x-ad-slot position="right_sidebar" :category-id="is_numeric(request('category_id')) ? (int) request('category_id') : null" />
     </div>
 </main>
 <x-site-footer />

@@ -11,7 +11,7 @@ class AdSelector
      * Súlyozott véletlen választás. Ugyanazon oldalbetöltés alatt az azonos
      * pozíció ugyanazt a kreatívot kapja, így nem generálunk mesterséges frissítést.
      */
-    public function forPlacement(string $key): ?Advertisement
+    public function forPlacement(string $key, ?int $categoryId = null, ?int $quizId = null): ?Advertisement
     {
         if (auth()->user()?->isAdFree()) {
             return null;
@@ -26,12 +26,17 @@ class AdSelector
             return null;
         }
 
-        $requestKey = "kwizzgo.selected-ad.{$key}";
+        // A kontextus a gyorsítókulcs része, mert egy oldalon ugyanaz a
+        // pozíció eltérő kvíz- vagy kategóriacélzással is előfordulhat.
+        $requestKey = "kwizzgo.selected-ad.{$key}.category-".($categoryId ?? 'none').'.quiz-'.($quizId ?? 'none');
         if (request()->attributes->has($requestKey)) {
             return request()->attributes->get($requestKey);
         }
 
-        $ads = $placement->advertisements()->currentlyActive()->get();
+        $ads = $placement->advertisements()
+            ->currentlyActive()
+            ->forContext($categoryId, $quizId)
+            ->get();
         if ($ads->isEmpty()) {
             request()->attributes->set($requestKey, null);
             return null;

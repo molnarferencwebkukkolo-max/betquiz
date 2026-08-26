@@ -12,9 +12,14 @@ class AdSlot extends Component
 {
     public ?Advertisement $advertisement;
 
-    public function __construct(public string $position, AdSelector $selector)
+    public function __construct(
+        public string $position,
+        AdSelector $selector,
+        public ?int $categoryId = null,
+        public ?int $quizId = null,
+    )
     {
-        $this->advertisement = $selector->forPlacement($position);
+        $this->advertisement = $selector->forPlacement($position, $categoryId, $quizId);
     }
 
     public function render(): View|Closure|string

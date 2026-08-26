@@ -99,6 +99,6 @@
             </form>
         </section>
     </div>
-    <x-ad-slot position="content_horizontal" />
+    <x-ad-slot position="content_horizontal" :category-id="$quiz->category_id" :quiz-id="$quiz->id" />
 </main>
 @endsection

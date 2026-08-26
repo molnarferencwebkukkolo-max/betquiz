@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Advertisement;
 use App\Models\AdPlacement;
+use App\Models\Category;
+use App\Models\Quiz;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,12 +20,14 @@ class AdvertisementController extends Controller
         $this->authorizeHostadmin();
 
         $advertisements = Advertisement::query()
-            ->with(['placements', 'creator'])
+            ->with(['placements', 'creator', 'categories', 'quizzes'])
             ->latest()
             ->get();
         $placements = AdPlacement::query()->orderBy('id')->get();
+        $categories = Category::query()->orderBy('slug')->get();
+        $quizzes = Quiz::query()->with('category')->orderBy('title')->get();
 
-        return view('admin.advertisements.index', compact('advertisements', 'placements'));
+        return view('admin.advertisements.index', compact('advertisements', 'placements', 'categories', 'quizzes'));
     }
 
     public function store(Request $request)
@@ -45,9 +49,13 @@ class AdvertisementController extends Controller
 
             $validated['created_by'] = auth()->id();
             $placementIds = $validated['placements'];
-            unset($validated['placements'], $validated['image']);
+            $categoryIds = $validated['categories'] ?? [];
+            $quizIds = $validated['quizzes'] ?? [];
+            unset($validated['placements'], $validated['categories'], $validated['quizzes'], $validated['image']);
             $advertisement = Advertisement::create($validated);
             $advertisement->placements()->sync($placementIds);
+            $advertisement->categories()->sync($categoryIds);
+            $advertisement->quizzes()->sync($quizIds);
         });
 
         return back()->with('success', 'A hirdetés elkészült.');
@@ -74,9 +82,13 @@ class AdvertisementController extends Controller
             }
 
             $placementIds = $validated['placements'];
-            unset($validated['placements'], $validated['image']);
+            $categoryIds = $validated['categories'] ?? [];
+            $quizIds = $validated['quizzes'] ?? [];
+            unset($validated['placements'], $validated['categories'], $validated['quizzes'], $validated['image']);
             $advertisement->update($validated);
             $advertisement->placements()->sync($placementIds);
+            $advertisement->categories()->sync($categoryIds);
+            $advertisement->quizzes()->sync($quizIds);
         });
 
         if (($request->hasFile('image') || $validated['type'] === 'adsense') && $oldImage) {
@@ -138,6 +150,10 @@ class AdvertisementController extends Controller
             'ends_at' => ['nullable', 'date', 'after:starts_at'],
             'placements' => ['required', 'array', 'min:1'],
             'placements.*' => ['integer', Rule::exists('ad_placements', 'id')->where('is_active', true)],
+            'categories' => ['nullable', 'array'],
+            'categories.*' => ['integer', 'distinct', Rule::exists('categories', 'id')],
+            'quizzes' => ['nullable', 'array'],
+            'quizzes.*' => ['integer', 'distinct', Rule::exists('quizzes', 'id')],
         ]) + ['is_active' => $request->boolean('is_active')];
     }
 }
