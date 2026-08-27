@@ -75,6 +75,20 @@ class PublicQuizSharingTest extends TestCase
             ->assertSee(route('quiz.setup', $quiz));
     }
 
+    public function test_legacy_setup_url_serves_social_preview_to_guest_instead_of_login_redirect(): void
+    {
+        $quiz = $this->makeQuiz([
+            'title' => 'Régi megosztott link',
+            'seo_description' => 'A régi setup URL is közvetlen előnézetet ad.',
+        ]);
+
+        $this->get(route('quiz.setup', $quiz))
+            ->assertOk()
+            ->assertSee('<meta property="og:title" content="Régi megosztott link">', false)
+            ->assertSee('<link rel="canonical" href="'.route('quizzes.share', $quiz).'">', false)
+            ->assertDontSee('<title>KwizzGo - Bejelentkezés</title>', false);
+    }
+
     public function test_public_quizzes_are_discoverable_in_the_sitemap(): void
     {
         $public = $this->makeQuiz();

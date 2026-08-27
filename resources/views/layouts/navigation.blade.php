@@ -1,3 +1,4 @@
+@php($unreadNotificationCount = auth()->check() ? auth()->user()->unreadNotifications()->count() : 0)
 <header class="nav-header" data-mobile-navigation>
     <div class="nav-container">
         <div class="nav-wrapper">
@@ -41,39 +42,27 @@
                         <a href="{{ route('pages.points') }}" class="nav-btn-points">Szerezz pontot</a>
                     @endauth
 
-                    @if(auth()->check() && (auth()->user()->isUseradmin() || auth()->user()->isHostadmin()))
-                        <span class="nav-group-label">Adminisztráció</span>
-                        <a href="{{ route('questions.index') }}"
-                           class="nav-link-item nav-link-purple {{ request()->routeIs('questions.*') ? 'active' : '' }}">
-                            Kérdésbank
-                        </a>
-                        <a href="{{ route('admin.users.index') }}"
-                           class="nav-link-item nav-link-purple {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
-                            Felhasználók
-                        </a>
-                    @endif
-
-                    @if(auth()->check() && auth()->user()->isHostadmin())
-                        <a href="{{ route('admin.contents.index') }}"
-                           class="nav-link-item nav-link-purple {{ request()->routeIs('admin.contents.*') ? 'active' : '' }}">
-                            Tartalomkezelő
-                        </a>
-                        <a href="{{ route('admin.advertisements.index') }}"
-                           class="nav-link-item nav-link-purple {{ request()->routeIs('admin.advertisements.*') ? 'active' : '' }}">
-                            Hirdetések
-                        </a>
-                        <a href="{{ route('admin.categories.index') }}"
-                           class="nav-link-item nav-link-purple {{ request()->routeIs('admin.categories.*') ? 'active' : '' }}">
-                            Kategóriák
-                        </a>
+                    @if(auth()->check() && auth()->user()->isUseradmin())
+                        @php($adminNavigationActive = request()->routeIs('questions.*', 'admin.users.*', 'admin.contents.*', 'admin.email-templates.*', 'admin.advertisements.*', 'admin.categories.*'))
+                        <details class="nav-admin-dropdown" @if($adminNavigationActive) data-active @endif>
+                            <summary class="nav-link-item nav-admin-trigger {{ $adminNavigationActive ? 'active' : '' }}">Adminisztráció <span aria-hidden="true">⌄</span></summary>
+                            <div class="nav-admin-dropdown-panel">
+                                <span class="nav-group-label">Adminisztráció</span>
+                                <a href="{{ route('questions.index') }}" class="nav-link-item nav-link-purple {{ request()->routeIs('questions.*') ? 'active' : '' }}">Kérdésbank</a>
+                                <a href="{{ route('admin.users.index') }}" class="nav-link-item nav-link-purple {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">Felhasználók</a>
+                                @if(auth()->user()->isHostadmin())
+                                    <a href="{{ route('admin.email-templates.index') }}" class="nav-link-item nav-link-purple {{ request()->routeIs('admin.email-templates.*') ? 'active' : '' }}">E-mail sablonok</a>
+                                    <a href="{{ route('admin.contents.index') }}" class="nav-link-item nav-link-purple {{ request()->routeIs('admin.contents.*') ? 'active' : '' }}">Tartalomkezelő</a>
+                                    <a href="{{ route('admin.advertisements.index') }}" class="nav-link-item nav-link-purple {{ request()->routeIs('admin.advertisements.*') ? 'active' : '' }}">Hirdetések</a>
+                                    <a href="{{ route('admin.categories.index') }}" class="nav-link-item nav-link-purple {{ request()->routeIs('admin.categories.*') ? 'active' : '' }}">Kategóriák</a>
+                                @endif
+                            </div>
+                        </details>
                     @endif
                 </nav>
 
                 <div class="nav-account-actions">
                     @auth
-                        @php
-                            $unreadNotificationCount = auth()->user()->unreadNotifications()->count();
-                        @endphp
                         <a href="{{ route('notifications.index') }}"
                            class="nav-notification-bell {{ request()->routeIs('notifications.*') ? 'active' : '' }}"
                            aria-label="Értesítések{{ $unreadNotificationCount ? ', '.$unreadNotificationCount.' olvasatlan' : '' }}"
@@ -169,3 +158,4 @@
         setOpen(false, false);
     })();
 </script>
+<x-cookie-consent />

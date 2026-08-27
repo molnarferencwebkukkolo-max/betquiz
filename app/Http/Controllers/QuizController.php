@@ -6,6 +6,7 @@ use App\Models\Quiz;
 use App\Models\User;
 use App\Models\Question;
 use App\Models\Category;
+use App\Models\Content;
 use App\Services\PointService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -38,6 +39,17 @@ class QuizController extends Controller
         $socialImage = $this->quizSocialImage($quiz);
 
         return view('play.public-preview', compact('quiz', 'canonicalUrl', 'socialImage'));
+    }
+
+    /**
+     * Visszafelé kompatibilis belépési pont a régi megosztott setup URL-ekhez.
+     * A robot/vendég nem kerül loginra, a bejelentkezett játékmenet változatlan.
+     */
+    public function setupQuizEntry(Quiz $quiz)
+    {
+        return Auth::check()
+            ? $this->setupQuizPlay($quiz)
+            : $this->publicPreview($quiz);
     }
 
     /**
@@ -198,6 +210,15 @@ class QuizController extends Controller
             'players' => User::query()->where('is_active', true)->count(),
         ];
 
+        // A Dashboard minden látogatónak ugyanazt a legfrissebb, ténylegesen
+        // publikált magazintartalmat mutatja; piszkozat nem szivároghat ki.
+        $latestArticles = Content::query()
+            ->publiclyVisible()
+            ->where('type', 'article')
+            ->latest('published_at')
+            ->take(3)
+            ->get();
+
         return view('dashboard', compact(
             'user',
             'featuredQuizzes',
@@ -209,7 +230,8 @@ class QuizController extends Controller
             'popularQuizzes',
             'heroPopularQuizzes',
             'myQuizzes',
-            'homeStats'
+            'homeStats',
+            'latestArticles'
         ));
     }
 

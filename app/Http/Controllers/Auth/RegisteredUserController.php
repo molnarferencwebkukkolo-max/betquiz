@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\RecaptchaVerifier;
+use App\Services\LegalConsentService;
+use App\Services\ReferralService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,7 +31,7 @@ class RegisteredUserController extends Controller
      *
      * @throws \Illuminate\Validation\ValidationException
      */
-    public function store(Request $request, RecaptchaVerifier $recaptcha): RedirectResponse
+    public function store(Request $request, RecaptchaVerifier $recaptcha, LegalConsentService $legalConsents, ReferralService $referrals): RedirectResponse
     {
         $recaptcha->validate($request, 'register');
 
@@ -41,6 +43,8 @@ class RegisteredUserController extends Controller
             'username' => ['required', 'string', 'min:3', 'max:30', 'regex:/^[\pL\pN_-]+$/u', Rule::unique('users', 'username')],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'accept_terms' => ['accepted'],
+            'accept_privacy' => ['accepted'],
         ]);
 
         $user = User::create([
@@ -51,10 +55,13 @@ class RegisteredUserController extends Controller
             'points' => 1000, // Kezdőtőke 1000 PT!
         ]);
 
+        $legalConsents->recordRegistrationConsents($user, $request);
+        $referrals->attachFromSession($user, $request);
+
         event(new Registered($user));
 
         Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        return redirect(route('verification.notice', absolute: false));
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Content;
+use App\Models\Quiz;
 use App\Services\ContentHtmlSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -34,7 +35,9 @@ class ContentController extends Controller
         $this->authorizeHostadmin();
         $content = new Content(['type' => $request->input('type') === 'article' ? 'article' : 'page']);
 
-        return view('admin.contents.editor', compact('content'));
+        $quizOptions = $this->quizOptions();
+
+        return view('admin.contents.editor', compact('content', 'quizOptions'));
     }
 
     public function store(Request $request, ContentHtmlSanitizer $sanitizer)
@@ -45,6 +48,7 @@ class ContentController extends Controller
         $content = DB::transaction(function () use ($request, $validated, $sanitizer) {
             $data = $this->prepareData($request, $validated, $sanitizer);
             $content = Content::create($data);
+            $this->syncRecommendedQuizzes($content, $validated);
             $this->snapshotIfPublished($content);
 
             return $content;
@@ -56,9 +60,10 @@ class ContentController extends Controller
     public function edit(Content $content)
     {
         $this->authorizeHostadmin();
-        $content->load('revisions.publisher');
+        $content->load(['revisions.publisher', 'recommendedQuizzes']);
+        $quizOptions = $this->quizOptions();
 
-        return view('admin.contents.editor', compact('content'));
+        return view('admin.contents.editor', compact('content', 'quizOptions'));
     }
 
     public function update(Request $request, Content $content, ContentHtmlSanitizer $sanitizer)
@@ -70,6 +75,7 @@ class ContentController extends Controller
         DB::transaction(function () use ($request, $validated, $content, $sanitizer) {
             $data = $this->prepareData($request, $validated, $sanitizer, $content);
             $content->update($data);
+            $this->syncRecommendedQuizzes($content, $validated);
             $this->snapshotIfPublished($content);
         });
 
@@ -127,6 +133,15 @@ class ContentController extends Controller
             'footer_label' => ['nullable', 'string', 'max:100'],
             'footer_group' => ['nullable', 'string', 'max:100'],
             'footer_order' => ['required', 'integer', 'min:0', 'max:1000'],
+            'recommended_quizzes' => ['nullable', 'array'],
+            'recommended_quizzes.*' => [
+                'integer',
+                'distinct',
+                Rule::exists('quizzes', 'id')->where(fn ($query) => $query
+                    ->where('status', 'approved')
+                    ->where('is_public', true)
+                    ->whereNull('deleted_at')),
+            ],
         ]);
     }
 
@@ -152,8 +167,37 @@ class ContentController extends Controller
         }
 
         unset($validated['social_image']);
+        unset($validated['recommended_quizzes']);
 
         return $validated;
+    }
+
+    /**
+     * A beküldött sorrendet a pivot position mezőjében is megőrizzük.
+     * Oldalakhoz nem tartunk meg kvízajánlást, még típusváltás után sem.
+     */
+    private function syncRecommendedQuizzes(Content $content, array $validated): void
+    {
+        $quizIds = $content->type === 'article'
+            ? array_values(array_unique(array_map('intval', $validated['recommended_quizzes'] ?? [])))
+            : [];
+
+        $content->recommendedQuizzes()->sync(collect($quizIds)->mapWithKeys(
+            fn (int $quizId, int $position) => [$quizId => ['position' => $position]]
+        )->all());
+    }
+
+    /**
+     * Csak ténylegesen játszható kvíz kerülhet a szerkesztő ajánlójába.
+     */
+    private function quizOptions()
+    {
+        return Quiz::query()
+            ->with('category:id,name')
+            ->where('status', 'approved')
+            ->where('is_public', true)
+            ->orderBy('title')
+            ->get(['id', 'category_id', 'title']);
     }
 
     private function snapshotIfPublished(Content $content): void

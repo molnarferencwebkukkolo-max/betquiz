@@ -2,22 +2,31 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Notifications\VerifyEmailNotification;
+use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
+use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 #[Fillable(['name', 'username', 'email', 'google_id', 'email_verified_at', 'password', 'role', 'is_banned', 'is_active', 'is_ad_free', 'points', 'time_travel_theme', 'birth_date', 'gender', 'country', 'county', 'favorite_category_id', 'relationship_status', 'children_count', 'profile_details_rewarded_at'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmailContract
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, MustVerifyEmailTrait, Notifiable;
+
+    /** A KwizzGo sajat, magyar nyelvu hitelesitesi levelet kuldi. */
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new VerifyEmailNotification());
+    }
 
     /**
      * Az adatbázis-defaultokat modelloldalon is tükrözzük, hogy egy frissen
@@ -104,6 +113,21 @@ class User extends Authenticatable
     public function notificationPreferences(): HasMany
     {
         return $this->hasMany(NotificationPreference::class);
+    }
+
+    public function legalConsents(): HasMany
+    {
+        return $this->hasMany(LegalConsent::class);
+    }
+
+    public function invitedReferrals(): HasMany
+    {
+        return $this->hasMany(Referral::class, 'inviter_id');
+    }
+
+    public function receivedReferral(): HasOne
+    {
+        return $this->hasOne(Referral::class, 'invited_user_id');
     }
 
     public function questionReports(): HasMany

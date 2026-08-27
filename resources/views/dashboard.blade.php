@@ -68,6 +68,30 @@
 
     <x-ad-slot position="top_horizontal" />
 
+    @if($latestArticles->isNotEmpty())
+        <section class="home-articles-section" aria-labelledby="home-articles-title">
+            <div class="home-content-shell">
+                <div class="home-section-heading home-articles-heading">
+                    <div>
+                        <span>KwizzGo magazin</span>
+                        <h2 id="home-articles-title">Legújabb cikkek</h2>
+                    </div>
+                    <a href="{{ route('articles.index') }}">Összes cikk →</a>
+                </div>
+                <div class="home-articles-grid">
+                    @foreach($latestArticles as $article)
+                        <article class="home-article-card">
+                            <span>{{ ($article->published_at ?? $article->updated_at)->format('Y. m. d.') }}</span>
+                            <h3><a href="{{ $article->publicUrl() }}">{{ $article->title }}</a></h3>
+                            <p>{{ Str::limit($article->excerpt ?: $article->effectiveSeoDescription(), 150) }}</p>
+                            <a href="{{ $article->publicUrl() }}" aria-label="{{ $article->title }} elolvasása">Elolvasom →</a>
+                        </article>
+                    @endforeach
+                </div>
+            </div>
+        </section>
+    @endif
+
     <section class="home-light-section">
         <div class="home-content-shell">
             <h2>Miért válaszd a <span>KwizzGo</span>-t?</h2>

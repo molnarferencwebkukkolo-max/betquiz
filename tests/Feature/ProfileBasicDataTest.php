@@ -18,13 +18,16 @@ class ProfileBasicDataTest extends TestCase
             'username' => 'Teszt_Jatekos',
             'email' => 'updated@example.com',
             'role' => 'user',
-        ])->assertSessionHasNoErrors()->assertSessionHas('status', 'profile-updated');
+        ])->assertSessionHasNoErrors()
+            ->assertRedirect(route('verification.notice'))
+            ->assertSessionHas('status', 'verification-link-sent');
 
         $user->refresh();
         $this->assertSame('teszt_jatekos', $user->name);
         $this->assertSame('teszt_jatekos', $user->username);
         $this->assertSame('updated@example.com', $user->email);
         $this->assertSame('useradmin', $user->role);
+        $this->assertNull($user->email_verified_at);
     }
 
     public function test_username_must_be_unique(): void

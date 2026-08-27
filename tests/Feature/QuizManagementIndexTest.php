@@ -295,9 +295,24 @@ class QuizManagementIndexTest extends TestCase
         $this->actingAs($admin)->patch(route('admin.quizzes.bulk-update'), [
             'quiz_ids' => [$quiz->id],
             'bulk_action' => 'make_public',
-        ])->assertSessionHasNoErrors();
+        ])->assertSessionHasNoErrors()->assertRedirect(route('my-quizzes.index'));
 
         $this->assertTrue($quiz->fresh()->is_public);
+    }
+
+    public function test_single_quiz_bulk_action_returns_to_quiz_instead_of_bulk_endpoint(): void
+    {
+        $category = $this->makeCategory();
+        $admin = User::factory()->create(['role' => 'hostadmin']);
+        $quiz = $this->makeQuiz($admin, $category, 'Biztonságos visszatérés', 'pending');
+
+        $this->actingAs($admin)->patch(route('admin.quizzes.bulk-update'), [
+            'quiz_ids' => [$quiz->id],
+            'return_quiz_id' => $quiz->id,
+            'bulk_action' => 'approve',
+        ])->assertRedirect(route('my-quizzes.show', $quiz));
+
+        $this->assertSame('approved', $quiz->fresh()->status);
     }
 
     public function test_regular_user_cannot_use_quiz_bulk_actions(): void

@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\LegalConsentService;
+use App\Services\ReferralService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -20,7 +23,22 @@ class GoogleAuthController extends Controller
         return Socialite::driver('google')->redirect();
     }
 
-    public function callback(): RedirectResponse
+    /**
+     * Google-regisztrációnál még az átirányítás előtt kötelező a két jogi
+     * dokumentum elfogadása. A rövid életű session-jelzőt a callback fogyasztja el.
+     */
+    public function registerRedirect(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'accept_terms' => ['accepted'],
+            'accept_privacy' => ['accepted'],
+        ]);
+        $request->session()->put('google_registration_legal_consent', true);
+
+        return Socialite::driver('google')->redirect();
+    }
+
+    public function callback(LegalConsentService $legalConsents, ReferralService $referrals): RedirectResponse
     {
         try {
             /** @var GoogleUser $googleUser */
@@ -59,6 +77,12 @@ class GoogleAuthController extends Controller
                     return [$user, false];
                 }
 
+                if (! request()->session()->pull('google_registration_legal_consent', false)) {
+                    throw ValidationException::withMessages([
+                        'accept_terms' => 'Új Google-fiók létrehozásához fogadd el az ÁSZF-et és az adatkezelési szabályzatot.',
+                    ]);
+                }
+
                 $user = User::create([
                     'name' => trim((string) $googleUser->getName()) ?: strstr($email, '@', true),
                     'email' => $email,
@@ -72,6 +96,8 @@ class GoogleAuthController extends Controller
             });
 
             if ($created) {
+                $legalConsents->recordRegistrationConsents($user, request());
+                $referrals->attachFromSession($user, request());
                 event(new Registered($user));
             }
 

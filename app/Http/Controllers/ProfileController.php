@@ -16,6 +16,7 @@ use App\Models\NotificationPreference;
 use App\Models\Category;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use App\Services\ReferralService;
 
 class ProfileController extends Controller
 {
@@ -32,7 +33,7 @@ class ProfileController extends Controller
     /**
      * Update the user's profile information.
      */
-    public function update(Request $request)
+    public function update(Request $request, ReferralService $referrals)
     {
         $user = $request->user();
 
@@ -60,6 +61,8 @@ class ProfileController extends Controller
 
         // A szerepkör jogosultsági adat, azt a felhasználó saját
         // profilmentéssel nem módosíthatja.
+        $emailChanged = mb_strtolower($user->email) !== mb_strtolower((string) $request->email);
+
         $user->update([
             // A legacy name mezőt az egyetlen nyilvános felhasználónévvel
             // szinkronban tartjuk a régi nézetek és kapcsolódások miatt.
@@ -67,6 +70,15 @@ class ProfileController extends Controller
             'username' => $request->username,
             'email' => $request->email,
         ]);
+        if ($emailChanged) {
+            // Az uj cim csak egy uj alairt linkkel valhat hitelesitette.
+            $user->forceFill(['email_verified_at' => null])->save();
+            $user->sendEmailVerificationNotification();
+
+            return redirect()->route('verification.notice')->with('status', 'verification-link-sent');
+        }
+
+        $referrals->finalize($user->fresh());
 
         return back()->with('status', 'profile-updated');
     }

@@ -43,6 +43,32 @@
                     @if(!$content->content_json && $content->content_html)<template data-initial-html>{!! $content->content_html !!}</template>@endif
                 </div>
 
+                @php
+                    $selectedRecommendedQuizzes = collect(old(
+                        'recommended_quizzes',
+                        $content->exists ? $content->recommendedQuizzes->pluck('id')->all() : []
+                    ))->map(fn ($id) => (int) $id)->all();
+                @endphp
+                <div class="content-panel" data-article-quiz-panel>
+                    <h2>Ajánlott kvízek</h2>
+                    <p class="text-sm text-slate-400">Cikk esetén válaszd ki a kapcsolódó, nyilvános kvízeket. A kijelölés sorrendjében jelennek meg a cikk alatt.</p>
+                    <label>
+                        <span>Kvíz keresése</span>
+                        <input type="search" data-article-quiz-filter placeholder="Kezdj el gépelni…" autocomplete="off">
+                    </label>
+                    <label>
+                        <span>Kapcsolódó kvízek</span>
+                        <select name="recommended_quizzes[]" multiple size="8" data-article-quiz-select>
+                            @foreach($quizOptions as $quizOption)
+                                <option value="{{ $quizOption->id }}" @selected(in_array($quizOption->id, $selectedRecommendedQuizzes, true))>
+                                    {{ $quizOption->title }} — {{ $quizOption->category?->translated_name ?? $quizOption->category?->name ?? 'Nincs kategória' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <small class="text-slate-500">Több elem kijelöléséhez használd a Ctrl (Macen ⌘) billentyűt.</small>
+                </div>
+
                 @include('admin.contents.partials.metadata', ['content'=>$content])
             </section>
 
@@ -63,4 +89,21 @@
     </form>
     @if($content->exists && !in_array($content->slug,['aszf','adatkezeles','mediaajanlat'],true))<form id="delete-content-form" method="POST" action="{{ route('admin.contents.destroy',$content) }}">@csrf @method('DELETE')</form>@endif
 </main>
+<script>
+    (() => {
+        const filter = document.querySelector('[data-article-quiz-filter]');
+        const select = document.querySelector('[data-article-quiz-select]');
+        if (!filter || !select) return;
+
+        filter.addEventListener('input', () => {
+            const query = filter.value.trim().toLocaleLowerCase('hu');
+            [...select.options].forEach(option => {
+                // A kijelölt kvízek keresés közben is láthatók maradnak, így nem
+                // lehet őket véletlenül elveszíteni egy szűrés miatt.
+                option.hidden = !option.selected && query !== ''
+                    && !option.text.toLocaleLowerCase('hu').includes(query);
+            });
+        });
+    })();
+</script>
 </body></html>

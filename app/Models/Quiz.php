@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes; //
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Str;
 
 class Quiz extends Model
@@ -86,6 +87,16 @@ class Quiz extends Model
     public function tags()
     {
         return $this->belongsToMany(Tag::class)->withTimestamps();
+    }
+
+    /**
+     * Azok a szerkesztőségi tartalmak, amelyek ezt a kvízt ajánlják.
+     */
+    public function recommendingContents(): BelongsToMany
+    {
+        return $this->belongsToMany(Content::class, 'content_quiz')
+            ->withPivot('position')
+            ->withTimestamps();
     }
 
     public function getEffectiveSeoTitleAttribute(): string

@@ -15,16 +15,16 @@
 
 ### Phase 1 - Working quizzes, registration, user management, and gameplay
 
-- NEXT FIRST: complete the production hardening and browser-level acceptance test after deploying the `a46e2c6` update and successfully running the `question_reports` migration and production cache rebuild:
-  - deploy the completed advertisement category/quiz targeting update, run `2026_08_26_150000_create_advertisement_targeting_tables`, rebuild production caches, and verify global, category-only, and quiz-only ad rotation on the live domain;
+- NEXT FIRST: complete the remaining production hardening and browser-level acceptance work:
+  - verify global, category-only, and quiz-only ad rotation on the live domain after the successfully deployed advertisement-targeting migration;
   - smoke-test `/quiz/play/{quiz}/questions/{question}/report` end to end on the live domain and confirm that the former HTTP 500 is gone, the game remains continuable, and no points or answer statistics are awarded; inspect the Laravel log after the test;
   - create and verify a restorable production database/files backup if this was not completed before the update;
   - confirm environment-only SMTP values, enable the intended preferences for controlled recipients, and receive real new-registration, quiz-request, quiz-approval, question-report, moderation, password-reset, and weekly-report messages while checking delivery-failure logging and spam placement;
   - verify emergency-hostadmin and normal login, registration with reCAPTCHA v3, Google OAuth, password reset, SMTP delivery, admin tools, content management, advertisements, uploads, quiz creation/import, gameplay, helpers, notifications, and responsive rendering on the live domain;
   - configure and verify the scheduler/cron for weekly reports;
-  - repair the currently missing HTTP-to-HTTPS redirection, resolve the current live `/sitemap.xml` HTTP 500, and verify required PHP extensions, writable Laravel directories, and the manually created shared-hosting storage symlink;
+  - resolve the current live `/sitemap.xml` HTTP 500, and verify required PHP extensions, writable Laravel directories, and the manually created shared-hosting storage symlink;
   - confirm removal of the one-time `public/kwizzgo-deploy.php` endpoint and any uploaded release archives that are no longer needed;
-  - validate a deployed public quiz page and its absolute social image with Facebook Sharing Debugger and a second social-preview validator;
+  - deploy the completed legacy `/quiz/setup/{quiz}` social-preview compatibility fix, rebuild route/view caches, then validate both old setup links and new public quiz links with Facebook Sharing Debugger and a second social-preview validator;
   - document and test the production database-backup and rollback procedure;
   - rotate every secret exposed in chat or diagnostic output, including SMTP, Google OAuth, reCAPTCHA, emergency-hostadmin, and FTP credentials, and keep replacements environment-only.
 - Complete the `BetQuiz` -> `KwizzGo` brand migration end to end:
@@ -63,45 +63,59 @@
 
 ## Work Log
 
+### 2026-08-27
+
+#### Completed today
+
+- Connected published articles to recommended approved/public quizzes through the hostadmin content editor and displayed public articles on the dashboard.
+- Added versioned registration consent records for the Terms and Privacy Policy, plus a responsive essential/analytics cookie-consent surface and consent-controlled Google Analytics loading.
+- Added the points-earning page with profile completion, Facebook, and referral tasks; implemented unique invite links, 1,000 PT referral rewards, and username-only referral notifications.
+- Added dedicated invite social-preview metadata, a generated sitemap response, the Google Analytics tag integration, and the quiz bulk-action redirect correction.
+- Consolidated admin navigation into one responsive dropdown and fixed desktop notification/points overlap.
+- Enabled mandatory e-mail verification for new password registrations without locking out existing accounts; e-mail changes require re-verification, while Google registrations remain verified.
+- Added a post-verification Welcome e-mail and a single hostadmin e-mail-template editor with preview, test delivery, variables, safe Markdown links, and preserved blank lines.
+- Added a hostadmin-only complete user profile with personal, consent, activity, notification, quiz, and referral data while excluding authentication secrets; hardened legacy array-valued profile rendering.
+- Diagnosed the live SMTP test: SMTP authentication and transport work; the rejected test recipient was the non-public `emergency-admin@kwizzgo.local` placeholder address.
+- Deployed the day's cPanel updates and migrations, then corrected the production pending-migration HTTP 500 and the legacy admin-profile rendering HTTP 500.
+- Restored the real local SQLite database after tests had reset it, ran all new migrations, and verified 10 users, 18 quizzes, 1,314 questions, and 106 answers remained intact.
+- Final verification: 181 tests and 827 assertions passed; Vite production build, Blade/route/config cache compilation, SQLite integrity, and foreign-key validation succeeded.
+
+#### Still unfinished after today
+
+- Complete a real new password registration using a public mailbox and confirm receipt of both the verification and post-verification Welcome e-mails, including spam placement and link behavior.
+- Replace the emergency hostadmin placeholder recipient with an appropriate real, environment-managed administrative address if hostadmin self-test delivery is required.
+- Continue the remaining production acceptance, scheduler, backup/rollback, secret rotation, social-validator, advertisement-rotation, cross-browser, and accessibility checks listed in Phase 1.
+
 ### 2026-08-26
 
-- DONE LOCALLY: added optional advertisement targeting by multiple categories and/or specific quizzes. Ads with no targets remain globally eligible; targeted ads enter rotation exclusively when the current category or quiz matches, while ad-free users, placement activation, schedules, weights, and existing image/AdSense rules remain unchanged.
-- ADMIN UX: the hostadmin advertisement editor now offers category multi-selection and a searchable quiz multi-selector, preserves selections during editing/validation, allows clearing all targets to restore global delivery, and labels saved ads as global or with their concrete targets.
-- CONTEXT WIRING: quiz setup and gameplay pass both quiz and category context to ad selection; filtered catalogs pass category context; generic dashboard/content placements accept global ads only. Request-level rotation caching now includes the targeting context to prevent cross-context creative reuse.
-- DATABASE / VERIFICATION: created and locally ran `2026_08_26_150000_create_advertisement_targeting_tables` after a timestamped SQLite backup. Advertisement targeting coverage passed with 9 tests and 32 assertions; the complete suite passed with 154 tests and 703 assertions; Blade compilation and the Vite production build succeeded; SQLite integrity is `ok` with zero foreign-key violations.
-- RELEASE PACKAGE: created `.deploy/KwizzGo-cPanel-ad-targeting-update-20260826.zip`, a verified 11-file incremental cPanel hotfix containing only the advertisement-targeting runtime files, its migration, and PHP 8.3 deployment/rollback instructions. It contains no `.env`, secrets, SQLite database, tests, uploads, or deployment endpoint; SHA-256 is `8AD93D587A1CFDD552658D23D3AD13C3AC78E3731DF9D13D31CE4249E8A6F520`.
-- NOT DONE / PRODUCTION: the advertisement-targeting hotfix has been prepared but is not yet deployed or smoke-tested on cPanel.
-- RELEASE PACKAGE: created `.deploy/KwizzGo-cPanel-update-a46e2c6-20260826.zip`, a 29-file incremental cPanel update containing the tested application changes, the `question_reports` migration, compiled Vite assets, a proxy-safe HTTP-to-HTTPS `.htaccess` rule, and backup/deploy/rollback instructions. Verified that the archive contains no `.env`, secrets, SQLite database, tests, user uploads, or deployment endpoint; SHA-256 is `3D778A4D1F6432229BABF9B989DE648E82DA2BFDAB404D95DE0AFB8C0BEE3E13`.
-- PRIORITY REVIEW: cleaned the Phase 1 list again so it contains only unfinished work. Consolidated the overlapping report, e-mail, deployment, security, and smoke-test items into one production acceptance checklist; locally completed gameplay, notification, responsive-navigation, zero-value, and public-sharing implementation items remain documented only in the work log.
-- RELEASE STATUS: the complete local change set, including `database/database.sqlite`, was committed and pushed to `origin/main` as `a46e2c6`; local and remote hashes match. The final complete suite passed with 150 tests and 689 assertions, Blade compilation and the Vite production build succeeded, and the worktree was clean immediately after the push.
-- LIVE READ-ONLY CHECK: `https://kwizzgo.com` responds successfully, but plain HTTP currently returns 200 without redirecting to HTTPS and `/sitemap.xml` currently returns HTTP 500. The legacy deployment endpoint returns 404 to a GET request, but physical deletion still requires hosting access.
-- PRODUCTION MIGRATION: identified the live question-report HTTP 500 cause from `migrate:status`: `2026_08_25_120000_create_question_reports_table` was still pending after the files had been extracted. The migration then completed successfully with the cPanel PHP 8.3 CLI binary, followed by successful `optimize:clear`, `config:cache`, `route:cache`, and `view:cache`; an authenticated end-to-end report retry and log check remain required before closure.
-- DONE LOCALLY: added crawler-accessible, logged-out quiz sharing pages at stable slug URLs. Approved public quizzes now render their own document, description, canonical, robots, Open Graph, Twitter Card, image-alt, image-dimension/type, and Quiz JSON-LD metadata directly without an authentication redirect; private and unapproved quizzes return HTTP 404.
-- DISCOVERY / FALLBACK: public quizzes are included in `sitemap.xml`, guest homepage quiz links lead to the public preview, authenticated visitors can continue to the existing setup screen, and quizzes without a usable cover receive a 1200x630 branded KwizzGo fallback image.
-- VERIFICATION: added public/private visibility, guest/authenticated CTA, real cover metadata, fallback metadata, and sitemap regression coverage. The focused sharing suite passed with 5 tests and 22 assertions, the complete suite passed with 150 tests and 689 assertions, Blade compilation succeeded, and `git diff --check` reported no whitespace errors.
-- NOT DONE / PRODUCTION: the deployed HTML and public image URLs still need validation against the live domain with Facebook Sharing Debugger and a second social-preview validator after deployment.
-- DONE LOCALLY: activated preference-controlled e-mail delivery for new registrations, new quiz requests, admin quiz approvals, and faulty-question reports, alongside the existing quiz-moderation, password-reset, and weekly-report mail. Added branded subjects, contextual copy, and direct action links for every new administrative mail event.
-- PREFERENCES: regular users and quiz creators see only applicable events, useradmins additionally see quiz-request settings, and hostadmins see registration, quiz-request, approval, and question-report settings. Database delivery remains enabled by default, while every e-mail channel remains explicit opt-in and can be disabled independently.
-- HARDENING / VERIFICATION: confirmed that mail configuration is environment-only, the weekly command is scheduled for Monday 08:00 Europe/Budapest, and delivery exceptions are isolated and logged. The focused mail/preference suite passed with 16 tests and 90 assertions, the complete suite passed with 145 tests and 667 assertions, and Blade compilation succeeded.
-- NOT DONE / PRODUCTION: no real external e-mail was sent during local automated verification. Production SMTP receipt, spam placement, failure logs, recipient preferences, and the hosting cron still require a controlled live-domain acceptance test after deployment and credential rotation.
-- DONE: expanded the in-app bell notification system with role-specific administrative events. The product-level super admin maps to the project's highest `hostadmin` role, while the operational host admin maps to `useradmin`: active, non-banned hostadmins receive new-registration, new-quiz-request, quiz-approval, and faulty-question-report events; active, non-banned useradmins receive new-quiz-request and faulty-question-report events. Quiz owners continue to receive their applicable moderation/report notifications.
-- HARDENING: registration notifications use the single auto-discovered Laravel `Registered` listener and therefore cover both password and Google registration; repeated quiz approvals no longer duplicate owner or super-admin notifications; recipient queries are unique and notification delivery failures are isolated and logged.
-- VERIFICATION: added role, inactive-recipient, event-payload, and approval-deduplication coverage; the focused notification/reporting/OAuth/quiz-management suite passed with 37 tests and 183 assertions, the complete suite passed with 141 tests and 644 assertions, Blade compilation succeeded, and the event map contains exactly one application registration listener.
-- DONE: rebuilt the shared navigation as a complete responsive desktop/tablet/mobile system. Added an off-canvas mobile drawer, hamburger and close controls, overlay closing, body-scroll locking, Escape handling, keyboard focus trapping/restoration, inactive-panel `inert` handling, reduced-motion support, compact tablet layout, active states, and guest/player/useradmin/hostadmin-specific links and account actions.
-- VERIFICATION: added responsive-navigation regression coverage for guest, regular-user, useradmin, and hostadmin output; the focused navigation/notification suite passed with 7 tests and 45 assertions, the complete suite passed with 138 tests and 627 assertions, Blade compilation succeeded, and the Vite production build completed successfully.
-- DONE: reordered the active gameplay question screen to the required user-facing hierarchy: `question -> answer options -> submit answer -> helpers -> report question`. The order is defined in the DOM and therefore remains consistent across desktop, tablet, and mobile; the collapsible report control is the final, visually secondary action.
-- VERIFICATION: added a regression assertion for the complete control order; the focused gameplay/reporting suite passed with 14 tests and 62 assertions, the complete suite passed with 135 tests and 600 assertions, and Blade compilation succeeded.
-- DONE LOCALLY: repaired the question-report submission continuation flow. A successful report now enters a dedicated decision screen, preserves the active game, skips the inactive question without counting it as answered, awards no points, creates no `user_answers` record, and leaves question answer statistics unchanged.
-- HARDENING: a moderator-notification delivery failure is now logged per recipient and can no longer turn an already persisted player report into an HTTP 500 response.
-- VERIFICATION: the focused reporting/gameplay suite passed with 13 tests and 60 assertions; the complete suite passed with 134 tests and 598 assertions; Blade compilation succeeded; the local `question_reports` migration is present in batch 29.
-- NOT DONE / PRODUCTION: the earlier live HTTP 500 cannot be considered closed until the production Laravel log and migration status are checked, the updated files are deployed, production caches are cleared, and a real live-domain report is submitted successfully.
-- DONE: fixed zero-valued question and answer text handling across creation, CSV import, editing, admin preview, and gameplay. The string/number `0` is preserved as valid text and no longer falls back to `Képes válasz`; added regression coverage for every affected path.
-- VERIFICATION: the focused question-management, CSV-import, preview, and gameplay suite passed with 40 tests and 149 assertions; the complete suite passed with 133 tests and 583 assertions; Blade compilation succeeded.
-- DONE: reviewed and cleaned the Phase 1 backlog so it contains only unfinished or partially finished work; removed completed deployment state and standing design/technical-identifier decisions from the task list.
-- NOT DONE: no application code, database schema, production configuration, or tests were changed as part of this documentation-only update.
-- NEW / NEXT FIRST: perform a complete responsive-navigation review and fully repair the mobile menu across supported roles, screen sizes, and interaction modes.
-- NEW / NEXT FIRST: extend bell notifications so super admins receive new-registration, new-quiz-request, quiz-approval, and faulty-question-report events, while host admins receive new-quiz-request and faulty-question-report events; reconcile these product labels with the project's concrete authorization roles before wiring recipients.
-- NEW / NEXT FIRST: activate production notification e-mails and verify event coverage, recipient preferences, SMTP delivery, failure handling, and secret-safe configuration.
+#### Completed today
+
+- Fixed string/numeric `0` handling across question creation, CSV import, editing, preview, and gameplay, with regression coverage.
+- Repaired the question-report continuation flow so a report preserves the active game, awards no points, writes no answer, and changes no answer statistics; notification-delivery failures can no longer turn a persisted report into HTTP 500.
+- Reordered gameplay controls to `question -> answers -> submit -> helpers -> report` at every responsive breakpoint.
+- Rebuilt the shared responsive navigation and mobile drawer with role-aware links, keyboard/focus handling, overlay/Escape closing, scroll locking, and reduced-motion behavior.
+- Expanded role-specific bell notifications: hostadmins receive registration, quiz request, approval, and question-report events; useradmins receive quiz request and question-report events; duplicate approvals and inactive/banned recipients are handled safely.
+- Added preference-controlled e-mail channels and branded messages for the new administrative notification events, while retaining existing moderation, password-reset, and weekly-report mail.
+- Added crawler-accessible public quiz sharing pages with quiz-specific canonical, robots, Open Graph, Twitter, image metadata/fallbacks, JSON-LD, sitemap discovery, and private/unapproved protection.
+- Added backward-compatible social previews for legacy `/quiz/setup/{quiz}` links: guests and crawlers now receive the public quiz metadata directly instead of a login redirect, while authenticated players retain the existing setup flow.
+- Added optional advertisement targeting by multiple categories and/or quizzes. Untargeted ads remain global; targeted ads rotate only in matching contexts. Added hostadmin selection/search UI and context-safe rotation caching.
+- Created and locally ran the advertisement-targeting migration after an SQLite backup; database integrity is `ok` with zero foreign-key violations.
+- Built verified cPanel update packs for the main Phase 1 changes and the advertisement-targeting hotfix; neither contains `.env`, secrets, SQLite, tests, uploads, or a web deployment endpoint.
+- Deployed the main `a46e2c6` update, identified the live report HTTP 500 as the pending `question_reports` migration, ran it successfully with cPanel PHP 8.3, and rebuilt production caches.
+- Repaired and live-verified HTTP-to-HTTPS redirection: plain HTTP now responds with 301 to HTTPS. The public quiz page and fallback social asset respond with HTTP 200.
+- Deployed and ran the advertisement-targeting migration after the missing tables temporarily caused the homepage to return HTTP 500; rebuilt caches and confirmed that the homepage error disappeared.
+- Pushed all current application and database changes to `origin/main` in commits `a46e2c6` and `9489443`; local and remote hashes matched after each push.
+- Final verification after feature work: 155 tests and 707 assertions passed; Blade and route compilation and the Vite production build succeeded.
+
+#### Still unfinished after today
+
+- Smoke-test global, category-only, and quiz-only advertisement rotation on production.
+- Deploy and validate the legacy setup-link social-preview compatibility fix.
+- Retry a real authenticated question report and inspect the production Laravel log before closing the former HTTP 500 incident.
+- Complete controlled production e-mail receipt/failure/spam tests and configure/verify the weekly cron.
+- Diagnose and fix the live `/sitemap.xml` HTTP 500.
+- Complete the remaining production smoke, backup/rollback, secret rotation, cleanup, social-validator, cross-browser, and accessibility checks listed in Phase 1.
+- Continue the remaining Phase 1 product work listed above; no new Phase 2 or Phase 3 task was added today.
 
 ### 2026-08-25
 

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -42,6 +43,17 @@ class Content extends Model
     public function revisions(): HasMany
     {
         return $this->hasMany(ContentRevision::class)->orderByDesc('version');
+    }
+
+    /**
+     * A cikkhez szerkesztői sorrendben kapcsolt, ajánlott kvízek.
+     */
+    public function recommendedQuizzes(): BelongsToMany
+    {
+        return $this->belongsToMany(Quiz::class, 'content_quiz')
+            ->withPivot('position')
+            ->orderByPivot('position')
+            ->withTimestamps();
     }
 
     public function scopePubliclyVisible(Builder $query): Builder

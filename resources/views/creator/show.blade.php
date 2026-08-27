@@ -109,6 +109,7 @@
                         @csrf
                         @method('PATCH')
                         <input type="hidden" name="quiz_ids[]" value="{{ $quiz->id }}">
+                        <input type="hidden" name="return_quiz_id" value="{{ $quiz->id }}">
                         <input type="hidden" name="bulk_action" value="{{ $isPublished ? 'make_private' : 'make_public' }}">
                         @if($isPublished)
                             <select class="moderation-reason-preset w-full mb-2 px-3 py-2 border border-amber-200 rounded-xl text-sm">

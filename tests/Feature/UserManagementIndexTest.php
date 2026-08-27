@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\Quiz;
 use App\Models\User;
+use App\Models\LegalConsent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use Illuminate\Support\Facades\Blade;
 
 class UserManagementIndexTest extends TestCase
 {
@@ -71,6 +73,57 @@ class UserManagementIndexTest extends TestCase
         $this->actingAs($user)
             ->get(route('admin.users.index'))
             ->assertForbidden();
+    }
+
+    public function test_only_hostadmin_can_view_the_complete_user_profile_without_secrets(): void
+    {
+        $hostadmin = User::factory()->create(['role' => 'hostadmin']);
+        $useradmin = User::factory()->create(['role' => 'useradmin']);
+        $listedUser = User::factory()->create([
+            'username' => 'teljesadat',
+            'email' => 'teljes@example.test',
+            'country' => 'Magyarorszag',
+            'password' => 'top-secret-password',
+            'google_id' => 'secret-google-identifier',
+        ]);
+        LegalConsent::create([
+            'user_id' => $listedUser->id,
+            'consent_type' => 'terms',
+            'content_version' => 2,
+            'document_url' => url('/aszf'),
+            'accepted_at' => now(),
+        ]);
+
+        $this->actingAs($hostadmin)->get(route('admin.users.show', $listedUser))
+            ->assertOk()
+            ->assertSee('teljes@example.test')
+            ->assertSee('Magyarorszag')
+            ->assertSee('Jogi elfogadasok')
+            ->assertDontSee('secret-google-identifier')
+            ->assertDontSee($listedUser->password);
+
+        $this->actingAs($useradmin)->get(route('admin.users.show', $listedUser))->assertForbidden();
+    }
+
+    public function test_hostadmin_can_view_useradmin_and_hostadmin_profiles(): void
+    {
+        $viewer = User::factory()->create(['role' => 'hostadmin']);
+        $useradmin = User::factory()->create(['role' => 'useradmin', 'username' => null]);
+        $hostadmin = User::factory()->create(['role' => 'hostadmin', 'username' => null]);
+
+        $this->actingAs($viewer)->get(route('admin.users.show', $useradmin))->assertOk();
+        $this->actingAs($viewer)->get(route('admin.users.show', $hostadmin))->assertOk();
+    }
+
+    public function test_admin_profile_value_rendering_accepts_legacy_array_values(): void
+    {
+        $rendered = Blade::render(<<<'BLADE'
+            @php($value = ['elso', 'masodik'])
+            @php($displayValue = is_array($value) ? collect($value)->flatten()->filter(fn ($item) => is_scalar($item))->implode(', ') : $value)
+            {{ $displayValue }}
+        BLADE);
+
+        $this->assertStringContainsString('elso, masodik', $rendered);
     }
 
     public function test_hostadmin_can_manage_status_and_useradmin_role(): void

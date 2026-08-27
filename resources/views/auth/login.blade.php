@@ -81,6 +81,7 @@
         </div>
     </form>
 </div>
+<x-cookie-consent />
 
 @if(config('recaptcha.enabled') && config('recaptcha.site_key'))
     <script>

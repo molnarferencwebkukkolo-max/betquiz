@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Notifications\QuizModerationNotification;
 use App\Services\AdminNotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -117,6 +118,7 @@ class QuizManagementController extends Controller
             'quiz_ids.*' => 'integer|exists:quizzes,id',
             'bulk_action' => 'required|in:approve,reject,make_public,make_private,change_owner',
             'owner_id' => 'nullable|required_if:bulk_action,change_owner|exists:users,id',
+            'return_quiz_id' => ['nullable', 'integer', 'exists:quizzes,id'],
             'moderation_reason' => [
                 'nullable',
                 Rule::requiredIf(fn () => in_array($request->input('bulk_action'), ['reject', 'make_private'], true)),
@@ -156,7 +158,7 @@ class QuizManagementController extends Controller
                 ->count();
 
             if ($notApprovedCount > 0) {
-                return back()->withErrors([
+                return $this->bulkRedirect($validated)->withErrors([
                     'bulk_action' => 'Publikussá csak jóváhagyott kvízek tehetők.',
                 ]);
             }
@@ -167,7 +169,7 @@ class QuizManagementController extends Controller
                 ->count();
 
             if ($incompleteCount > 0) {
-                return back()->withErrors([
+                return $this->bulkRedirect($validated)->withErrors([
                     'bulk_action' => 'Publikussá csak legalább 100 kérdést tartalmazó kvízek tehetők.',
                 ]);
             }
@@ -201,7 +203,23 @@ class QuizManagementController extends Controller
             );
         }
 
-        return back()->with('success', "{$updatedCount} kvíz tömeges módosítása elkészült.");
+        return $this->bulkRedirect($validated)
+            ->with('success', "{$updatedCount} kvíz tömeges módosítása elkészült.");
+    }
+
+    /**
+     * A bulk végpontról soha nem irányítunk vissza a Referer fejléc alapján:
+     * shared hostingon/proxy mögött annak hiánya GET /quizzes/bulk hibát okozott.
+     */
+    private function bulkRedirect(array $validated): RedirectResponse
+    {
+        if (! empty($validated['return_quiz_id'])) {
+            $quiz = Quiz::query()->findOrFail((int) $validated['return_quiz_id']);
+
+            return redirect()->route('my-quizzes.show', $quiz);
+        }
+
+        return redirect()->route('my-quizzes.index');
     }
 
     /**

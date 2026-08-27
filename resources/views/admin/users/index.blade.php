@@ -182,6 +182,12 @@
                             @php($canModerate = !$currentAdmin->is($listedUser) && !$listedUser->isHostadmin() && ($currentAdmin->isHostadmin() || $listedUser->role === 'user'))
                             @php($canChangeRole = $currentAdmin->isHostadmin() && !$currentAdmin->is($listedUser) && !$listedUser->isHostadmin())
 
+                            @if($currentAdmin->isHostadmin())
+                                <div class="mb-2 flex justify-end">
+                                    <a href="{{ route('admin.users.show', $listedUser) }}" class="rounded-lg bg-indigo-700 px-3 py-2 text-xs font-extrabold text-white">Teljes adatlap</a>
+                                </div>
+                            @endif
+
                             @if($canModerate || $canChangeRole)
                                 <div class="flex min-w-48 flex-wrap justify-end gap-2">
                                     @if($canModerate)

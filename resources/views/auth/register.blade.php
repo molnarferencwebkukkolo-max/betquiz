@@ -16,14 +16,6 @@
     <h2 class="auth-title">🎯 KwizzGo</h2>
     <p class="auth-subtitle-bonus">🎁 Regisztrációért 1 000 PT kezdőtőke jár!</p>
 
-    <a href="{{ route('auth.google.redirect') }}" class="btn-auth-submit" style="display: block; box-sizing: border-box; margin-bottom: 1.25rem; text-align: center; text-decoration: none; background: #fff; color: #334155; border: 1px solid #cbd5e1;">
-        Regisztráció Google-lel
-    </a>
-
-    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; color: #94a3b8; font-size: 0.8rem;">
-        <span style="height: 1px; flex: 1; background: #e2e8f0;"></span><span>vagy e-maillel</span><span style="height: 1px; flex: 1; background: #e2e8f0;"></span>
-    </div>
-
     <form method="POST" action="{{ route('register') }}" data-recaptcha-v3-form data-recaptcha-action="register">
         @csrf
 
@@ -52,6 +44,19 @@
             <input id="password_confirmation" class="form-input" type="password" name="password_confirmation" required />
         </div>
 
+        <div class="auth-legal-consents">
+            <label><input type="checkbox" name="accept_terms" value="1" @checked(old('accept_terms')) required><span>Elolvastam és elfogadom az <a href="{{ route('content.aszf') }}" target="_blank" rel="noopener">Általános Szerződési Feltételeket</a>.</span></label>
+            @error('accept_terms') <span class="form-error">{{ $message }}</span> @enderror
+            <label><input type="checkbox" name="accept_privacy" value="1" @checked(old('accept_privacy')) required><span>Elolvastam és elfogadom az <a href="{{ route('content.privacy') }}" target="_blank" rel="noopener">Adatkezelési szabályzatot</a>.</span></label>
+            @error('accept_privacy') <span class="form-error">{{ $message }}</span> @enderror
+        </div>
+
+        <button type="submit" formaction="{{ route('auth.google.register') }}" formmethod="POST" formnovalidate class="btn-auth-submit auth-google-register">
+            Regisztráció Google-lel
+        </button>
+
+        <div class="auth-divider"><span></span><b>vagy e-maillel</b><span></span></div>
+
         @if(config('recaptcha.enabled') && config('recaptcha.site_key'))
             <input type="hidden" name="g-recaptcha-response" value="">
             @error('g-recaptcha-response')
@@ -70,6 +75,8 @@
         </div>
     </form>
 </div>
+
+<x-cookie-consent />
 
 @if(config('recaptcha.enabled') && config('recaptcha.site_key'))
     <script>

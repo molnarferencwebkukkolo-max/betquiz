@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\Category;
 use App\Models\Content;
+use App\Models\Quiz;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -78,6 +80,27 @@ class ContentManagementTest extends TestCase
         $this->get($content->publicUrl())->assertSee('AI oldal');
     }
 
+    public function test_sitemap_is_valid_xml_with_stable_headers_and_excludes_drafts(): void
+    {
+        $published = Content::create($this->modelData([
+            'slug' => 'publikalt-sitemap-oldal', 'status' => 'published', 'sitemap_include' => true,
+        ]));
+        $draft = Content::create($this->modelData([
+            'slug' => 'piszkozat-sitemap-oldal', 'status' => 'draft', 'sitemap_include' => true,
+        ]));
+
+        $response = $this->get(route('content.sitemap'))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/xml; charset=UTF-8')
+            ->assertHeader('X-Content-Type-Options', 'nosniff')
+            ->assertSee(url('/oldal/'.$published->slug), false)
+            ->assertDontSee($draft->slug);
+
+        $xml = simplexml_load_string($response->getContent());
+        $this->assertNotFalse($xml);
+        $this->assertSame('urlset', $xml->getName());
+    }
+
     public function test_hostadmin_can_upload_editor_image(): void
     {
         Storage::fake('public');
@@ -100,6 +123,61 @@ class ContentManagementTest extends TestCase
         $this->get(route('content.show', $article->slug))->assertNotFound();
     }
 
+    public function test_hostadmin_can_attach_public_quizzes_to_an_article_in_editor_order(): void
+    {
+        $hostadmin = User::factory()->create(['role' => 'hostadmin']);
+        $firstQuiz = $this->quiz($hostadmin, ['title' => 'Második ajánlás']);
+        $secondQuiz = $this->quiz($hostadmin, ['title' => 'Első ajánlás']);
+
+        $this->actingAs($hostadmin)->post(route('admin.contents.store'), $this->payload([
+            'type' => 'article',
+            'slug' => 'ajanlott-kvizes-cikk',
+            'status' => 'published',
+            'recommended_quizzes' => [$secondQuiz->id, $firstQuiz->id],
+        ]))->assertRedirect()->assertSessionHasNoErrors();
+
+        $article = Content::where('slug', 'ajanlott-kvizes-cikk')->firstOrFail();
+        $this->assertSame(
+            [$secondQuiz->id, $firstQuiz->id],
+            $article->recommendedQuizzes()->pluck('quizzes.id')->all()
+        );
+
+        $this->post(route('logout'))->assertRedirect('/');
+        $response = $this->get($article->publicUrl())->assertOk();
+        $response->assertSeeInOrder(['Első ajánlás', 'Második ajánlás']);
+        $response->assertSee(route('quizzes.share', $firstQuiz));
+    }
+
+    public function test_private_or_unapproved_quiz_cannot_be_attached_to_article(): void
+    {
+        $hostadmin = User::factory()->create(['role' => 'hostadmin']);
+        $privateQuiz = $this->quiz($hostadmin, ['title' => 'Privát kvíz', 'is_public' => false]);
+
+        $this->actingAs($hostadmin)->post(route('admin.contents.store'), $this->payload([
+            'type' => 'article',
+            'recommended_quizzes' => [$privateQuiz->id],
+        ]))->assertSessionHasErrors('recommended_quizzes.0');
+    }
+
+    public function test_dashboard_shows_only_the_latest_public_articles_to_guests(): void
+    {
+        Content::create($this->modelData([
+            'type' => 'article', 'slug' => 'dashboard-publikalt', 'title' => 'Dashboard publikált cikk',
+            'status' => 'published', 'published_at' => now(),
+        ]));
+        Content::create($this->modelData([
+            'type' => 'article', 'slug' => 'dashboard-piszkozat', 'title' => 'Dashboard rejtett piszkozat',
+            'status' => 'draft',
+        ]));
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('Legújabb cikkek')
+            ->assertSee('Dashboard publikált cikk')
+            ->assertSee(route('articles.index'))
+            ->assertDontSee('Dashboard rejtett piszkozat');
+    }
+
     private function payload(array $overrides = []): array
     {
         return array_merge([
@@ -110,6 +188,23 @@ class ContentManagementTest extends TestCase
             'llms_section' => 'Információk', 'llms_priority' => 50, 'footer_group' => 'Információk', 'footer_order' => 100,
             'robots_index' => '1', 'robots_follow' => '1', 'sitemap_include' => '1', 'markdown_enabled' => '1',
         ], $overrides);
+    }
+
+    private function quiz(User $creator, array $overrides = []): Quiz
+    {
+        $category = Category::firstOrCreate(
+            ['slug' => 'tartalom-teszt'],
+            ['name' => ['hu' => 'Tartalom teszt'], 'is_active' => true]
+        );
+
+        return Quiz::create(array_merge([
+            'creator_id' => $creator->id,
+            'category_id' => $category->id,
+            'title' => 'Ajánlott kvíz',
+            'description' => 'Kapcsolódó tesztkvíz.',
+            'status' => 'approved',
+            'is_public' => true,
+        ], $overrides));
     }
 
     private function modelData(array $overrides = []): array

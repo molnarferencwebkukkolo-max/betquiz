@@ -18,6 +18,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NotificationPreferenceController;
 use App\Http\Controllers\QuizHelperController;
 use App\Http\Controllers\QuestionReportController;
+use App\Http\Controllers\Admin\EmailTemplateController;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,6 +27,7 @@ use App\Http\Controllers\QuestionReportController;
 */
 
 Route::get('/', [QuizController::class, 'dashboard']);
+Route::get('/meghivo/{code}', [PageController::class, 'acceptReferral'])->name('referrals.accept');
 Route::get('/aszf', [ContentPageController::class, 'short'])->defaults('slug', 'aszf')->name('content.aszf');
 Route::get('/adatkezeles', [ContentPageController::class, 'short'])->defaults('slug', 'adatkezeles')->name('content.privacy');
 Route::get('/mediaajanlat', [ContentPageController::class, 'short'])->defaults('slug', 'mediaajanlat')->name('content.media-kit');
@@ -34,6 +36,11 @@ Route::get('/sitemap.xml', [ContentPageController::class, 'sitemap'])->name('con
 // A megosztási URL szándékosan az auth csoporton kívül van, hogy a
 // közösségi oldalak robotjai is közvetlenül a kvíz metaadatait kapják.
 Route::get('/kviz/{quiz}', [QuizController::class, 'publicPreview'])->name('quizzes.share');
+// A korábban megosztott setup URL-eket sem engedjük a loginoldal metaadataira
+// esni: vendégnek publikus előnézet, játékosnak a megszokott setup jelenik meg.
+Route::get('/quiz/setup/{quiz}', [QuizController::class, 'setupQuizEntry'])
+    ->middleware('active')
+    ->name('quiz.setup');
 Route::get('/oldal/{content:slug}.md', [ContentPageController::class, 'markdown'])->name('content.markdown');
 Route::get('/oldal/{content:slug}', [ContentPageController::class, 'show'])->name('content.show');
 Route::get('/cikkek', [ContentPageController::class, 'articles'])->name('articles.index');
@@ -42,7 +49,7 @@ Route::get('/cikk/{content:slug}', [ContentPageController::class, 'article'])->n
 
 // Az e-mail-hitelesítés jelenleg nincs aktiválva a User modellen, ezért
 // itt csak a valóban érvényes auth- és fiókállapot-feltételek szerepelnek.
-Route::middleware(['auth', 'active'])->group(function () {
+Route::middleware(['auth', 'active', 'verified'])->group(function () {
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::patch('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
@@ -60,9 +67,6 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/quizzes', [QuizController::class, 'showBetForm'])->name('quizzes.index');
 
     Route::prefix('quiz')->name('quiz.')->group(function () {
-        // Tétbeállító képernyő (quiz.setup)
-        Route::get('/setup/{quiz}', [QuizController::class, 'setupQuizPlay'])->name('setup');
-
         // Játék indítása (quiz.start_play)
         Route::post('/play/{quiz}', [QuizController::class, 'startPlay'])->name('start_play');
 
@@ -149,11 +153,15 @@ Route::middleware(['auth', 'active'])->group(function () {
             ->only(['index', 'store', 'update', 'destroy']);
         Route::post('/contents/upload-image', [AdminContentController::class, 'uploadImage'])->name('contents.upload-image');
         Route::resource('contents', AdminContentController::class)->except(['show']);
+        Route::get('/email-templates', [EmailTemplateController::class, 'index'])->name('email-templates.index');
+        Route::patch('/email-templates/{emailTemplate}', [EmailTemplateController::class, 'update'])->name('email-templates.update');
+        Route::post('/email-templates/{emailTemplate}/test', [EmailTemplateController::class, 'sendTest'])->name('email-templates.test');
 
         Route::post('/quizzes/{quiz}/approve', [QuizManagementController::class, 'approveQuiz'])->name('quizzes.approve');
         Route::post('/quizzes/{quiz}/reject', [QuizManagementController::class, 'rejectQuiz'])->name('quizzes.reject');
 
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
+        Route::get('/users/{user}', [UserController::class, 'show'])->name('users.show');
         Route::patch('/users/{user}/status', [UserController::class, 'updateStatus'])
             ->name('users.status');
         Route::get('/quizzes/search', [QuizManagementController::class, 'search'])->name('quizzes.search');

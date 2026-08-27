@@ -1,0 +1,3 @@
+<?php
+namespace App\Notifications; use Illuminate\Bus\Queueable; use Illuminate\Notifications\Notification;
+class ReferralRewardNotification extends Notification { use Queueable; public function __construct(private readonly string $username,private readonly int $points){} public function via(object $n):array{return ['database'];} public function toArray(object $n):array{return ['event'=>'referral_reward','title'=>'Sikeres meghívás','context_label'=>'+'.number_format($this->points,0,',',' ').' PT','message'=>$this->username.' a meghívólinkeddel regisztrált. Jóváírtunk '.number_format($this->points,0,',',' ').' PT-t.','url'=>route('pages.points')];} }

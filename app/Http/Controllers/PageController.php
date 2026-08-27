@@ -3,14 +3,24 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Services\ReferralService;
 
 class PageController extends Controller
 {
-    public function points()
+    public function points(Request $request, ReferralService $referrals)
     {
-        return view('pages.coming-soon', [
-            'title' => '🎁 Szerezz Pontot!',
-            'subtitle' => 'Hamarosan újabb izgalmas feladatokkal és kihívásokkal gyűjthetsz extra zsetonokat!'
+        return view('pages.points', ['user'=>$request->user(),'inviteUrl'=>route('referrals.accept',$referrals->codeFor($request->user()))]);
+    }
+
+    public function acceptReferral(Request $request, string $code, ReferralService $referrals)
+    {
+        abort_unless($referrals->capture($request,$code),404);
+
+        // A külön landing oldal biztosítja, hogy a Facebook és más megosztási
+        // robotok ne egy átirányítást, hanem teljes OG/Twitter metaadatot kapjanak.
+        return view('pages.invite', [
+            'inviteUrl' => route('referrals.accept', $code),
+            'socialImage' => asset('images/invite-fb.png'),
         ]);
     }
 

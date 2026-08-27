@@ -18,7 +18,8 @@ class GoogleAuthenticationTest extends TestCase
     {
         $this->mockGoogleUser('google-123', 'new@example.com', 'New User');
 
-        $this->get(route('auth.google.callback'))
+        $this->withSession(['google_registration_legal_consent' => true])
+            ->get(route('auth.google.callback'))
             ->assertRedirect(route('profile.edit'))
             ->assertSessionHas('status', 'google-onboarding');
 
@@ -29,6 +30,18 @@ class GoogleAuthenticationTest extends TestCase
         $this->assertNotNull($user->email_verified_at);
         $this->assertNull($user->getRawOriginal('password'));
         $this->assertNull($user->username);
+        $this->assertDatabaseHas('legal_consents', ['user_id' => $user->id, 'consent_type' => 'terms']);
+        $this->assertDatabaseHas('legal_consents', ['user_id' => $user->id, 'consent_type' => 'privacy']);
+    }
+
+    public function test_new_google_account_is_not_created_without_legal_acceptance(): void
+    {
+        $this->mockGoogleUser('google-no-consent', 'no-consent@example.com', 'No Consent');
+
+        $this->get(route('auth.google.callback'))->assertSessionHasErrors('accept_terms');
+
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', ['email' => 'no-consent@example.com']);
     }
 
     public function test_verified_google_email_safely_links_an_existing_account(): void

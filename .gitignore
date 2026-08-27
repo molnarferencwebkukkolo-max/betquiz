@@ -8,6 +8,9 @@ database/database.before-*.sqlite
 .phpunit.result.cache
 /.codex
 /.deploy
+# A cPanel feltoltesi csomagok es helyi telepitesi jegyzetek nem forraskodok.
+/KwizzGo-cPanel-*.zip
+/DEPLOY-INSTRUCTIONS*.md
 /.cursor/
 /.idea
 /.nova

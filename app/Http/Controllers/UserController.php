@@ -91,6 +91,32 @@ class UserController extends Controller
     }
 
     /**
+     * Hostadmin: teljes felhasznaloi adatlap. Hitelesitesi titkokat szandekosan
+     * nem adunk at a nezetnek, igy azok veletlenul sem jelenhetnek meg.
+     */
+    public function show(Request $request, User $user)
+    {
+        abort_unless($request->user()?->isHostadmin(), 403);
+
+        $user->load([
+            'favoriteCategory',
+            'legalConsents.content',
+            'receivedReferral.inviter:id,name,username',
+            'invitedReferrals.invitedUser:id,name,username,created_at',
+        ])->loadCount(['createdQuizzes', 'questionReports', 'invitedReferrals']);
+
+        $activity = [
+            'answers' => DB::table('user_answers')->where('user_id', $user->id)->count(),
+            'correct_answers' => DB::table('user_answers')->where('user_id', $user->id)->where('is_correct', true)->count(),
+            'notifications' => DB::table('notifications')->where('notifiable_type', User::class)->where('notifiable_id', $user->id)->count(),
+            'unread_notifications' => DB::table('notifications')->where('notifiable_type', User::class)->where('notifiable_id', $user->id)->whereNull('read_at')->count(),
+            'referral_points' => $user->invitedReferrals->sum('reward_points'),
+        ];
+
+        return view('admin.users.show', compact('user', 'activity'));
+    }
+
+    /**
      * Adminisztrátori fiókállapot- és szerepkör-műveletek.
      */
     public function updateStatus(Request $request, User $user)
