@@ -600,7 +600,24 @@ class QuizManagementController extends Controller
      */
     private function notifyQuizOwner(Quiz $quiz, string $event, ?string $reason = null): void
     {
-        $quiz->creator?->notify(new QuizModerationNotification($quiz, $event, $reason));
+        $recipient = $quiz->creator;
+
+        if (! $recipient) {
+            return;
+        }
+
+        try {
+            // A kvíz állapotváltozása már sikeresen megtörtént; egy külső
+            // SMTP-hiba emiatt nem fordíthatja HTTP 500-ra az admin műveletet.
+            $recipient->notify(new QuizModerationNotification($quiz, $event, $reason));
+        } catch (\Throwable $exception) {
+            Log::error('A kvízmoderációs értesítés nem volt kézbesíthető.', [
+                'quiz_id' => $quiz->id,
+                'recipient_id' => $recipient->id,
+                'event' => $event,
+                'exception' => $exception,
+            ]);
+        }
     }
 
     /**

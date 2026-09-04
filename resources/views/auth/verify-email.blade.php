@@ -13,6 +13,8 @@
         <p class="mt-4 leading-7 text-slate-300">Elkuldtuk a hitelesito linket a regisztraciokor megadott cimre. Kattints a levelben levo gombra, es maris hasznalhatod a KwizzGo minden funkciojat.</p>
         @if (session('status') === 'verification-link-sent')
             <div class="mt-5 rounded-xl border border-emerald-400/40 bg-emerald-500/10 p-4 font-bold text-emerald-200">Uj hitelesito linket kuldtunk.</div>
+        @elseif (session('status') === 'verification-link-failed')
+            <div class="mt-5 rounded-xl border border-red-400/40 bg-red-500/10 p-4 font-bold text-red-200">A hitelesito e-mailt most nem sikerult elkuldeni. Kerlek, probald meg kesobb ujra.</div>
         @endif
         <div class="mt-7 flex flex-col gap-3 sm:flex-row">
             <form method="POST" action="{{ route('verification.send') }}">@csrf

@@ -10,6 +10,7 @@
 - MINDIG a main ágra tesszük a gitre, de erre kérdezz rá!
 - A `database/database.sqlite` fájlt is mindig commitoljuk és feltöltjük a többi módosítással együtt.
 - A nyilvános márkanév `KwizzGo`. A technikai azonosítók — köztük a projektmappa, repository és a `betquiz.test` helyi domain — külön kérés nélkül maradjanak változatlanok.
+- Hotfix készítése kizárólag .deploy mappába!
 
 ## Next Development Priorities
 

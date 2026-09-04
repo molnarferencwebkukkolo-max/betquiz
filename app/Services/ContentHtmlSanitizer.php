@@ -94,7 +94,7 @@ class ContentHtmlSanitizer
             }
         }
 
-        if ($tag === 'img' && ! preg_match('#^(https?://|/storage/content/)#i', trim($element->getAttribute('src')))) {
+        if ($tag === 'img' && ! preg_match('#^(https?://|/storage/(content|email)/)#i', trim($element->getAttribute('src')))) {
             $element->parentNode?->removeChild($element);
         }
     }

@@ -19,6 +19,9 @@ use App\Http\Controllers\NotificationPreferenceController;
 use App\Http\Controllers\QuizHelperController;
 use App\Http\Controllers\QuestionReportController;
 use App\Http\Controllers\Admin\EmailTemplateController;
+use App\Http\Controllers\GuestQuizTrialController;
+use App\Http\Controllers\SupportChatController;
+use App\Http\Controllers\Admin\SupportChatController as AdminSupportChatController;
 
 /*
 |--------------------------------------------------------------------------
@@ -36,6 +39,14 @@ Route::get('/sitemap.xml', [ContentPageController::class, 'sitemap'])->name('con
 // A megosztási URL szándékosan az auth csoporton kívül van, hogy a
 // közösségi oldalak robotjai is közvetlenül a kvíz metaadatait kapják.
 Route::get('/kviz/{quiz}', [QuizController::class, 'publicPreview'])->name('quizzes.share');
+Route::post('/kviz/{quiz}/proba', [GuestQuizTrialController::class, 'start'])->name('quizzes.trial.start');
+Route::get('/kviz/{quiz}/proba', [GuestQuizTrialController::class, 'show'])->name('quizzes.trial.show');
+Route::post('/kviz/{quiz}/proba/valasz', [GuestQuizTrialController::class, 'answer'])->name('quizzes.trial.answer');
+Route::get('/kviz/{quiz}/proba/eredmeny', [GuestQuizTrialController::class, 'result'])->name('quizzes.trial.result');
+Route::get('/support-chat/state', [SupportChatController::class, 'state'])->name('support-chat.state');
+Route::post('/support-chat/messages', [SupportChatController::class, 'store'])->name('support-chat.messages.store');
+Route::post('/support-chat/reopen', [SupportChatController::class, 'reopen'])->name('support-chat.reopen');
+Route::get('/support-chat/access/{token}', [SupportChatController::class, 'access'])->name('support-chat.access');
 // A korábban megosztott setup URL-eket sem engedjük a loginoldal metaadataira
 // esni: vendégnek publikus előnézet, játékosnak a megszokott setup jelenik meg.
 Route::get('/quiz/setup/{quiz}', [QuizController::class, 'setupQuizEntry'])
@@ -145,6 +156,10 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
     // 5. ADMINISZTRÁCIÓ
     // ------------------------------------------------------------------------
     Route::prefix('admin')->name('admin.')->group(function () {
+        Route::get('/support-chat', [AdminSupportChatController::class, 'index'])->name('support-chat.index');
+        Route::get('/support-chat/{conversation}', [AdminSupportChatController::class, 'show'])->name('support-chat.show');
+        Route::post('/support-chat/{conversation}/reply', [AdminSupportChatController::class, 'reply'])->name('support-chat.reply');
+        Route::patch('/support-chat/{conversation}/status', [AdminSupportChatController::class, 'status'])->name('support-chat.status');
         // A kategóriáknál csak a ténylegesen használt kezelőműveleteket tesszük elérhetővé.
         Route::resource('categories', CategoryController::class)
             ->only(['index', 'store', 'update', 'destroy']);
@@ -154,6 +169,11 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::post('/contents/upload-image', [AdminContentController::class, 'uploadImage'])->name('contents.upload-image');
         Route::resource('contents', AdminContentController::class)->except(['show']);
         Route::get('/email-templates', [EmailTemplateController::class, 'index'])->name('email-templates.index');
+        Route::get('/email-templates/create', [EmailTemplateController::class, 'create'])->name('email-templates.create');
+        Route::post('/email-templates', [EmailTemplateController::class, 'store'])->name('email-templates.store');
+        Route::post('/email-templates/upload-image', [EmailTemplateController::class, 'uploadImage'])->name('email-templates.upload-image');
+        Route::get('/email-templates/{emailTemplate}/edit', [EmailTemplateController::class, 'edit'])->name('email-templates.edit');
+        Route::get('/email-templates/{emailTemplate}/deliveries', [EmailTemplateController::class, 'deliveries'])->name('email-templates.deliveries');
         Route::patch('/email-templates/{emailTemplate}', [EmailTemplateController::class, 'update'])->name('email-templates.update');
         Route::post('/email-templates/{emailTemplate}/test', [EmailTemplateController::class, 'sendTest'])->name('email-templates.test');
 
@@ -162,6 +182,9 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
 
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::get('/users/{user}', [UserController::class, 'show'])->name('users.show');
+        Route::post('/users/{user}/email/verification', [UserController::class, 'sendVerificationEmail'])->name('users.email.verification');
+        Route::post('/users/{user}/email/campaign', [UserController::class, 'sendCampaignEmail'])->name('users.email.campaign');
+        Route::post('/users/{user}/email/custom', [UserController::class, 'sendCustomEmail'])->name('users.email.custom');
         Route::patch('/users/{user}/status', [UserController::class, 'updateStatus'])
             ->name('users.status');
         Route::get('/quizzes/search', [QuizManagementController::class, 'search'])->name('quizzes.search');

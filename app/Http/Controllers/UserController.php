@@ -3,10 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Content;
+use App\Models\EmailTemplate;
+use App\Models\Quiz;
+use App\Notifications\CampaignEmailNotification;
+use App\Services\ContentHtmlSanitizer;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
@@ -113,7 +120,93 @@ class UserController extends Controller
             'referral_points' => $user->invitedReferrals->sum('reward_points'),
         ];
 
-        return view('admin.users.show', compact('user', 'activity'));
+        $campaigns = EmailTemplate::query()->where('template_type', EmailTemplate::TYPE_CAMPAIGN)
+            ->orderBy('name')->get(['id', 'name', 'subject', 'is_active']);
+        $recommendedQuizzes = Quiz::query()->where('status', 'approved')->where('is_public', true)
+            ->orderBy('title')->get(['id', 'title']);
+        $recommendedContents = Content::query()->whereIn('status', ['published', 'scheduled'])
+            ->orderBy('title')->get(['id', 'title']);
+
+        return view('admin.users.show', compact('user', 'activity', 'campaigns', 'recommendedQuizzes', 'recommendedContents'));
+    }
+
+    /** A felhasználó saját, személyre szabott hitelesítő linkjének admin újraküldése. */
+    public function sendVerificationEmail(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()?->isHostadmin(), 403);
+
+        try {
+            $user->sendEmailVerificationNotification();
+        } catch (\Throwable $exception) {
+            return $this->emailFailure($request, $user, 'verification', $exception);
+        }
+
+        return back()->with('success', 'A hitelesítő e-mailt elküldtük ide: '.$user->email);
+    }
+
+    /** Egy már megírt automatizált kampánysablon azonnali, egyszeri kiküldése. */
+    public function sendCampaignEmail(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()?->isHostadmin(), 403);
+        $validated = $request->validate(['email_template_id' => ['required', 'integer', 'exists:email_templates,id']]);
+        $template = EmailTemplate::query()->findOrFail($validated['email_template_id']);
+        abort_unless($template->isCampaign(), 422);
+
+        try {
+            $user->notify(new CampaignEmailNotification($template, true, $user));
+        } catch (\Throwable $exception) {
+            return $this->emailFailure($request, $user, 'campaign', $exception);
+        }
+
+        return back()->with('success', 'A „'.$template->name.'” levelet elküldtük ide: '.$user->email);
+    }
+
+    /** Gazdag szövegszerkesztővel összeállított, nem mentett egyedi levél. */
+    public function sendCustomEmail(Request $request, User $user, ContentHtmlSanitizer $sanitizer): RedirectResponse
+    {
+        abort_unless($request->user()?->isHostadmin(), 403);
+        $validated = $request->validate([
+            'subject' => ['required', 'string', 'max:255'], 'heading' => ['required', 'string', 'max:255'],
+            'header_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'content_json' => ['nullable', 'json'], 'content_html' => ['required', 'string', 'max:2000000'],
+            'button_text' => ['nullable', 'string', 'max:100'], 'footer' => ['nullable', 'string', 'max:2000'],
+            'recommended_quiz_ids' => ['nullable', 'array'], 'recommended_quiz_ids.*' => ['integer', 'exists:quizzes,id'],
+            'recommended_content_ids' => ['nullable', 'array'], 'recommended_content_ids.*' => ['integer', 'exists:contents,id'],
+            'include_progress' => ['nullable', 'boolean'],
+        ]);
+
+        $template = new EmailTemplate([
+            'template_type' => EmailTemplate::TYPE_CAMPAIGN,
+            'subject' => trim($validated['subject']), 'heading' => trim($validated['heading']),
+            'content_json' => filled($validated['content_json'] ?? null) ? json_decode($validated['content_json'], true) : null,
+            'content_html' => $sanitizer->sanitize($validated['content_html']),
+            'recommended_quiz_ids' => $validated['recommended_quiz_ids'] ?? [],
+            'recommended_content_ids' => $validated['recommended_content_ids'] ?? [],
+            'include_progress' => $request->boolean('include_progress'),
+            'button_text' => $validated['button_text'] ?? null, 'footer' => $validated['footer'] ?? null,
+            'is_active' => false,
+        ]);
+        if ($request->hasFile('header_image')) {
+            $template->header_image_path = $request->file('header_image')->store('email/headers', 'public');
+        }
+
+        try {
+            $user->notify(new CampaignEmailNotification($template, true, $user));
+        } catch (\Throwable $exception) {
+            return $this->emailFailure($request, $user, 'custom', $exception);
+        }
+
+        return back()->with('success', 'Az egyedi e-mailt elküldtük ide: '.$user->email);
+    }
+
+    private function emailFailure(Request $request, User $user, string $type, \Throwable $exception): RedirectResponse
+    {
+        Log::error('A hostadmin felhasználói e-mailje nem volt kézbesíthető.', [
+            'sender_id' => $request->user()->id, 'recipient_id' => $user->id,
+            'email_type' => $type, 'exception' => $exception,
+        ]);
+
+        return back()->withInput()->with('error', 'Az e-mail nem ment ki. Ellenőrizd az SMTP-beállításokat és a Laravel naplót.');
     }
 
     /**

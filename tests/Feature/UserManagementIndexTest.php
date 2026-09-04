@@ -5,7 +5,12 @@ namespace Tests\Feature;
 use App\Models\Quiz;
 use App\Models\User;
 use App\Models\LegalConsent;
+use App\Models\EmailTemplate;
+use App\Notifications\CampaignEmailNotification;
+use App\Notifications\VerifyEmailNotification;
+use Illuminate\Contracts\Notifications\Dispatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 use Illuminate\Support\Facades\Blade;
 
@@ -113,6 +118,98 @@ class UserManagementIndexTest extends TestCase
 
         $this->actingAs($viewer)->get(route('admin.users.show', $useradmin))->assertOk();
         $this->actingAs($viewer)->get(route('admin.users.show', $hostadmin))->assertOk();
+    }
+
+    public function test_hostadmin_can_send_a_custom_email_from_the_complete_user_profile(): void
+    {
+        Notification::fake();
+        $hostadmin = User::factory()->create(['role' => 'hostadmin']);
+        $recipient = User::factory()->create(['role' => 'user', 'email' => 'cimzett@example.test']);
+
+        $this->actingAs($hostadmin)
+            ->from(route('admin.users.show', $recipient))
+            ->post(route('admin.users.email.custom', $recipient), [
+                'subject' => 'Fontos KwizzGo üzenet',
+                'heading' => 'Kedves játékos!',
+                'content_html' => '<p>Első bekezdés.</p><p>Második bekezdés.</p>',
+            ])
+            ->assertRedirect(route('admin.users.show', $recipient))
+            ->assertSessionHas('success');
+
+        Notification::assertSentTo($recipient, CampaignEmailNotification::class, function (CampaignEmailNotification $notification): bool {
+            return $notification->template->subject === 'Fontos KwizzGo üzenet'
+                && $notification->template->content_html === '<p>Első bekezdés.</p><p>Második bekezdés.</p>';
+        });
+    }
+
+    public function test_hostadmin_can_resend_verification_and_send_a_saved_campaign(): void
+    {
+        Notification::fake();
+        $hostadmin = User::factory()->create(['role' => 'hostadmin']);
+        $recipient = User::factory()->unverified()->create();
+        $campaign = EmailTemplate::create([
+            'key' => 'campaign_profile_test', 'template_type' => EmailTemplate::TYPE_CAMPAIGN,
+            'name' => 'Mentett kampány', 'subject' => 'Mentett tárgy', 'heading' => 'Szia!',
+            'body' => 'Tartalom', 'content_html' => '<p>Mentett tartalom</p>', 'is_active' => false,
+        ]);
+
+        $this->actingAs($hostadmin)->post(route('admin.users.email.verification', $recipient))->assertSessionHas('success');
+        $this->actingAs($hostadmin)->post(route('admin.users.email.campaign', $recipient), [
+            'email_template_id' => $campaign->id,
+        ])->assertSessionHas('success');
+
+        Notification::assertSentTo($recipient, VerifyEmailNotification::class);
+        Notification::assertSentTo($recipient, CampaignEmailNotification::class, fn ($notification) => $notification->template->is($campaign));
+    }
+
+    public function test_non_hostadmin_cannot_send_a_custom_user_email(): void
+    {
+        Notification::fake();
+        $useradmin = User::factory()->create(['role' => 'useradmin']);
+        $recipient = User::factory()->create(['role' => 'user']);
+
+        $this->actingAs($useradmin)
+            ->post(route('admin.users.email.custom', $recipient), [
+                'subject' => 'Tiltott üzenet',
+                'heading' => 'Tiltott', 'content_html' => '<p>Ezt nem küldheti el.</p>',
+            ])
+            ->assertForbidden();
+
+        Notification::assertNothingSent();
+    }
+
+    public function test_custom_user_email_requires_a_subject_and_body(): void
+    {
+        Notification::fake();
+        $hostadmin = User::factory()->create(['role' => 'hostadmin']);
+        $recipient = User::factory()->create(['role' => 'user']);
+
+        $this->actingAs($hostadmin)
+            ->post(route('admin.users.email.custom', $recipient), ['subject' => '', 'heading' => '', 'content_html' => ''])
+            ->assertSessionHasErrors(['subject', 'heading', 'content_html']);
+
+        Notification::assertNothingSent();
+    }
+
+    public function test_custom_user_email_delivery_failure_returns_to_profile_instead_of_http_500(): void
+    {
+        $dispatcher = \Mockery::mock(Dispatcher::class);
+        $dispatcher->shouldReceive('send')
+            ->once()
+            ->andThrow(new \RuntimeException('Szimulált SMTP-hiba.'));
+        $this->app->instance(Dispatcher::class, $dispatcher);
+
+        $hostadmin = User::factory()->create(['role' => 'hostadmin']);
+        $recipient = User::factory()->create(['role' => 'user']);
+
+        $this->actingAs($hostadmin)
+            ->from(route('admin.users.show', $recipient))
+            ->post(route('admin.users.email.custom', $recipient), [
+                'subject' => 'Tesztüzenet',
+                'heading' => 'Teszt', 'content_html' => '<p>Kézbesítési próba.</p>',
+            ])
+            ->assertRedirect(route('admin.users.show', $recipient))
+            ->assertSessionHas('error');
     }
 
     public function test_admin_profile_value_rendering_accepts_legacy_array_values(): void

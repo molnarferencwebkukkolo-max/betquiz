@@ -2,11 +2,13 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Notifications\VerifyEmailNotification;
 use App\Models\Content;
 use App\Models\User;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
-use App\Notifications\VerifyEmailNotification;
 use Tests\TestCase;
 
 class RegistrationTest extends TestCase
@@ -51,6 +53,30 @@ class RegistrationTest extends TestCase
             'content_version' => 7,
             'document_url' => url('/adatkezeles'),
         ]);
+    }
+
+    public function test_post_registration_notification_failure_does_not_return_http_500(): void
+    {
+        Content::where('slug', 'aszf')->update(['version' => 4, 'status' => 'published']);
+        Content::where('slug', 'adatkezeles')->update(['version' => 7, 'status' => 'published']);
+
+        // A produkciós SMTP-/értesítési hibát közvetlenül a Registered eseményen
+        // szimuláljuk, így azt is bizonyítjuk, hogy a fiók már megmarad.
+        Event::forget(Registered::class);
+        Event::listen(Registered::class, static function (): void {
+            throw new \RuntimeException('Szimulált kézbesítési hiba.');
+        });
+
+        $this->post(route('register'), $this->payload([
+            'username' => 'smtp_hiba_teszt',
+            'email' => 'smtp-hiba@example.com',
+        ]))->assertRedirect(route('verification.notice'));
+
+        $this->assertDatabaseHas('users', [
+            'username' => 'smtp_hiba_teszt',
+            'email' => 'smtp-hiba@example.com',
+        ]);
+        $this->assertAuthenticated();
     }
 
     public function test_registration_page_contains_legal_links_and_cookie_controls(): void

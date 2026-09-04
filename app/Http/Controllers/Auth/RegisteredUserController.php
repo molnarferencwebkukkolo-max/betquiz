@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -58,7 +59,17 @@ class RegisteredUserController extends Controller
         $legalConsents->recordRegistrationConsents($user, $request);
         $referrals->attachFromSession($user, $request);
 
-        event(new Registered($user));
+        try {
+            // A regisztrációs esemény több, külső kézbesítést is végző listenert
+            // indít (például a hitelesítő e-mailt). Egy átmeneti SMTP-hiba miatt
+            // a már létrehozott fiók nem maradhat félrevezető HTTP 500 oldalon.
+            event(new Registered($user));
+        } catch (\Throwable $exception) {
+            Log::error('A regisztráció utáni értesítések kézbesítése sikertelen volt.', [
+                'user_id' => $user->id,
+                'exception' => $exception,
+            ]);
+        }
 
         Auth::login($user);
 

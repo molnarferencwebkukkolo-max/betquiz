@@ -62,6 +62,9 @@
             @auth
                 <a class="public-quiz-cta" href="{{ route('quiz.setup', $quiz) }}">Játék indítása</a>
             @else
+                <form method="POST" action="{{ route('quizzes.trial.start', $quiz) }}">@csrf
+                    <button class="public-quiz-cta" type="submit">Kipróbálom 10 kérdéssel</button>
+                </form>
                 <a class="public-quiz-cta" href="{{ route('login') }}">Belépés és játék</a>
                 <p class="public-quiz-register">Még nincs fiókod? <a href="{{ route('register') }}">Regisztrálj ingyen!</a></p>
             @endauth

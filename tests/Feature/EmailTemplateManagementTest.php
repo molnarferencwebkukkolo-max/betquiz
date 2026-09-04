@@ -47,7 +47,7 @@ class EmailTemplateManagementTest extends TestCase
 
         $template = EmailTemplate::content(EmailTemplate::VERIFICATION);
         $this->actingAs($hostadmin)->post(route('admin.email-templates.test', $template))->assertRedirect();
-        Notification::assertSentTo($hostadmin, VerifyEmailNotification::class);
+        Notification::assertSentOnDemand(VerifyEmailNotification::class);
     }
 
     public function test_already_verified_google_style_registration_gets_welcome_email(): void

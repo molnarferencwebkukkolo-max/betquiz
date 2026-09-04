@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Notifications\VerifyEmailNotification;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Contracts\Notifications\Dispatcher;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
@@ -42,5 +43,22 @@ class EmailVerificationTest extends TestCase
         $user = User::factory()->unverified()->create();
         $this->actingAs($user)->post(route('verification.send'))->assertSessionHas('status', 'verification-link-sent');
         Notification::assertSentTo($user, VerifyEmailNotification::class);
+    }
+
+    public function test_verification_email_delivery_failure_returns_to_prompt_instead_of_http_500(): void
+    {
+        $dispatcher = \Mockery::mock(Dispatcher::class);
+        $dispatcher->shouldReceive('send')
+            ->once()
+            ->andThrow(new \RuntimeException('Szimulált SMTP-hiba.'));
+        $this->app->instance(Dispatcher::class, $dispatcher);
+
+        $user = User::factory()->unverified()->create();
+
+        $this->actingAs($user)
+            ->from(route('verification.notice'))
+            ->post(route('verification.send'))
+            ->assertRedirect(route('verification.notice'))
+            ->assertSessionHas('status', 'verification-link-failed');
     }
 }

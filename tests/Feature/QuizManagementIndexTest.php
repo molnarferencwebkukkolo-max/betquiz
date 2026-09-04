@@ -7,6 +7,7 @@ use App\Models\Option;
 use App\Models\Question;
 use App\Models\Quiz;
 use App\Models\User;
+use Illuminate\Contracts\Notifications\Dispatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -295,7 +296,47 @@ class QuizManagementIndexTest extends TestCase
         $this->actingAs($admin)->patch(route('admin.quizzes.bulk-update'), [
             'quiz_ids' => [$quiz->id],
             'bulk_action' => 'make_public',
-        ])->assertSessionHasNoErrors()->assertRedirect(route('my-quizzes.index'));
+            'return_quiz_id' => $quiz->id,
+        ])->assertSessionHasNoErrors()->assertRedirect(route('my-quizzes.show', $quiz));
+
+        $this->assertTrue($quiz->fresh()->is_public);
+    }
+
+    public function test_quiz_publication_notification_failure_does_not_break_bulk_redirect(): void
+    {
+        $category = $this->makeCategory();
+        $admin = User::factory()->create(['role' => 'hostadmin']);
+        $owner = User::factory()->create(['role' => 'user']);
+        $quiz = $this->makeQuiz($owner, $category, 'SMTP-hiba mellett publikálható', 'approved');
+
+        $questions = [];
+        for ($index = 1; $index <= 100; $index++) {
+            $questions[] = [
+                'quiz_id' => $quiz->id,
+                'category_id' => $category->id,
+                'difficulty' => 'medium',
+                'question_text' => json_encode(['hu' => "Kérdés {$index}"]),
+                'is_approved' => true,
+                'is_active' => true,
+                'times_answered' => 0,
+                'times_correct' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+        DB::table('questions')->insert($questions);
+
+        $dispatcher = \Mockery::mock(Dispatcher::class);
+        $dispatcher->shouldReceive('send')
+            ->once()
+            ->andThrow(new \RuntimeException('Szimulált SMTP-hiba.'));
+        $this->app->instance(Dispatcher::class, $dispatcher);
+
+        $this->actingAs($admin)->patch(route('admin.quizzes.bulk-update'), [
+            'quiz_ids' => [$quiz->id],
+            'bulk_action' => 'make_public',
+            'return_quiz_id' => $quiz->id,
+        ])->assertRedirect(route('my-quizzes.show', $quiz));
 
         $this->assertTrue($quiz->fresh()->is_public);
     }

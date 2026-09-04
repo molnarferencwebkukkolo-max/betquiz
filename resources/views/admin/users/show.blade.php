@@ -4,8 +4,9 @@
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $user->username }} teljes adatlapja | KwizzGo</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
-<body class="min-h-screen bg-slate-100 text-slate-900">
+<body class="admin-user-profile min-h-screen bg-slate-100 text-slate-900">
 @include('layouts.navigation')
 <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6">
     <a href="{{ route('admin.users.index') }}" class="font-bold text-indigo-700">← Vissza a felhasznalokhoz</a>
@@ -14,6 +15,81 @@
         <h1 class="mt-2 break-words text-3xl font-black sm:text-4xl">{{ $user->username ?: $user->name }}</h1>
         <p class="mt-2 break-all text-slate-300">{{ $user->email }}</p>
     </div>
+
+    @if(session('success'))
+        <div class="mt-5 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 font-bold text-emerald-800">{{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+        <div class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 font-bold text-red-800">{{ session('error') }}</div>
+    @endif
+    @if($errors->any())
+        <div class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-red-800">
+            <ul class="list-disc space-y-1 pl-5 font-bold">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
+        </div>
+    @endif
+
+    @if(\Illuminate\Support\Facades\Route::has('admin.users.email'))
+    <section class="mt-6 rounded-3xl bg-white p-6 shadow">
+        <h2 class="text-2xl font-black">E-mail küldése a felhasználónak</h2>
+        <p class="mt-2 text-sm text-slate-600">A levél közvetlenül a következő címre megy: <strong>{{ $user->email }}</strong></p>
+        <form method="POST" action="{{ route('admin.users.email', $user) }}" class="mt-5 space-y-4">
+            @csrf
+            <div>
+                <label for="email-subject" class="mb-2 block text-sm font-black">Tárgy</label>
+                <input id="email-subject" name="subject" value="{{ old('subject') }}" maxlength="200" required
+                       class="w-full rounded-xl border border-slate-300 px-4 py-3 focus:border-indigo-500 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label for="email-body" class="mb-2 block text-sm font-black">Üzenet</label>
+                <textarea id="email-body" name="body" rows="9" maxlength="10000" required
+                          class="w-full rounded-xl border border-slate-300 px-4 py-3 focus:border-indigo-500 focus:ring-indigo-500">{{ old('body') }}</textarea>
+            </div>
+            <button type="submit" class="rounded-xl bg-indigo-700 px-6 py-3 font-black text-white hover:bg-indigo-800"
+                    onclick="return confirm('Biztosan elküldöd ezt az e-mailt a felhasználónak?')">
+                E-mail elküldése
+            </button>
+        </form>
+    </section>
+    @endif
+
+    <section class="mt-6 rounded-3xl bg-white p-6 shadow">
+        <h2 class="text-2xl font-black">E-mail műveletek</h2>
+        <p class="mt-2 text-sm text-slate-600">Címzett: <strong>{{ $user->email }}</strong></p>
+        <div class="mt-5 grid gap-4 lg:grid-cols-3">
+            <form method="POST" action="{{ route('admin.users.email.verification', $user) }}" class="rounded-2xl border border-amber-200 bg-amber-50 p-5">@csrf
+                <h3 class="font-black">1. Hitelesítő e-mail</h3><p class="mt-2 text-sm text-slate-600">Új, személyre szabott hitelesítő link küldése.</p>
+                <button class="mt-5 w-full rounded-xl bg-amber-400 px-4 py-3 font-black text-slate-950">Hitelesítő e-mail újraküldése</button>
+            </form>
+            <details class="rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
+                <summary class="cursor-pointer list-none font-black">2. Előre megírt levél küldése</summary>
+                <form method="POST" action="{{ route('admin.users.email.campaign', $user) }}" class="mt-4">@csrf
+                    <label class="block text-sm font-bold">Időzített levél
+                        <select name="email_template_id" required class="mt-2 w-full rounded-xl border-slate-300">
+                            <option value="">Válassz sablont…</option>@foreach($campaigns as $campaign)<option value="{{ $campaign->id }}">{{ $campaign->name }}{{ $campaign->is_active ? '' : ' (piszkozat)' }}</option>@endforeach
+                        </select>
+                    </label>
+                    <button class="mt-4 w-full rounded-xl bg-indigo-700 px-4 py-3 font-black text-white">Kiválasztott levél küldése</button>
+                </form>
+            </details>
+            <div class="rounded-2xl border border-purple-200 bg-purple-50 p-5">
+                <h3 class="font-black">3. Egyedi e-mail készítése</h3><p class="mt-2 text-sm text-slate-600">Teljes, formázható levélszerkesztő használata.</p>
+                <a href="#custom-email-editor" onclick="document.getElementById('custom-email-editor').open=true" class="mt-5 block w-full rounded-xl bg-purple-700 px-4 py-3 text-center font-black text-white">Egyedi e-mail írása</a>
+            </div>
+        </div>
+
+        <details id="custom-email-editor" class="mt-5 rounded-2xl border border-purple-200 p-5">
+            <summary class="cursor-pointer text-lg font-black text-purple-800">Egyedi e-mail szerkesztő megnyitása</summary>
+            <form method="POST" enctype="multipart/form-data" data-content-editor-form action="{{ route('admin.users.email.custom', $user) }}" class="mt-5 space-y-5">@csrf
+                <div class="grid gap-4 md:grid-cols-2"><label class="font-bold">Levél tárgya<input name="subject" required maxlength="255" value="{{ old('subject') }}" class="mt-1 w-full rounded-xl border-slate-300"></label><label class="font-bold">Főcím<input name="heading" required maxlength="255" value="{{ old('heading') }}" class="mt-1 w-full rounded-xl border-slate-300"></label><label class="font-bold md:col-span-2">Fejléckép<input type="file" name="header_image" accept="image/jpeg,image/png,image/webp" class="mt-1 block w-full"></label></div>
+                <div class="content-editor-toolbar" data-editor-toolbar>@foreach([['bold','B'],['italic','I'],['underline','U'],['strike','S'],['h2','H2'],['h3','H3'],['bulletList','• Lista'],['orderedList','1. Lista'],['blockquote','Idézet'],['link','Link'],['alignLeft','Bal'],['alignCenter','Közép'],['alignRight','Jobb'],['table','Táblázat'],['undo','↶'],['redo','↷']] as [$command,$label])<button type="button" data-editor-command="{{ $command }}">{{ $label }}</button>@endforeach<button type="button" data-editor-image>Kép</button><input type="file" data-editor-image-input accept="image/jpeg,image/png,image/webp,image/gif" hidden></div>
+                <div class="content-tiptap-editor" data-content-editor data-upload-url="{{ route('admin.email-templates.upload-image') }}"></div><input type="hidden" name="content_json" data-content-json><input type="hidden" name="content_html" data-content-html><script type="application/json" data-initial-content>{!! json_encode(null) !!}</script>
+                <div class="grid gap-5 md:grid-cols-2"><label class="font-bold">Ajánlott kvízek<select name="recommended_quiz_ids[]" multiple size="6" class="mt-1 w-full rounded-xl border-slate-300">@foreach($recommendedQuizzes as $quiz)<option value="{{ $quiz->id }}">{{ $quiz->title }}</option>@endforeach</select></label><label class="font-bold">Ajánlott tartalmak<select name="recommended_content_ids[]" multiple size="6" class="mt-1 w-full rounded-xl border-slate-300">@foreach($recommendedContents as $content)<option value="{{ $content->id }}">{{ $content->title }}</option>@endforeach</select></label></div>
+                <label class="flex items-center gap-3 font-bold"><input type="checkbox" name="include_progress" value="1"> „Így állsz” blokk beillesztése</label>
+                <div class="grid gap-4 md:grid-cols-2"><label class="font-bold">Fő gomb felirata<input name="button_text" maxlength="100" class="mt-1 w-full rounded-xl border-slate-300"></label><label class="font-bold">Záró szöveg<textarea name="footer" rows="3" class="mt-1 w-full rounded-xl border-slate-300"></textarea></label></div>
+                <button class="rounded-xl bg-purple-700 px-6 py-3 font-black text-white" onclick="return confirm('Biztosan elküldöd az egyedi e-mailt?')">Egyedi e-mail elküldése</button>
+            </form>
+        </details>
+    </section>
 
     @php
         $fields = [
