@@ -59,9 +59,9 @@
                 Játék
             </a>
         @else
-            <button type="button" class="btn-primary-purple" onclick="openGuestAuthPrompt()" style="padding: 0.5rem 1rem; font-size: 0.75rem;">
+            <a href="{{ route('quizzes.share', $quiz) }}" class="btn-primary-purple" style="padding: 0.5rem 1rem; font-size: 0.75rem; text-decoration: none;">
                 Játék
-            </button>
+            </a>
         @endauth
     </div>
 </div>

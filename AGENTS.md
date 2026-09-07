@@ -16,6 +16,13 @@
 
 ### Phase 1 - Working quizzes, registration, user management, and gameplay
 
+- NEXT PRODUCT DEVELOPMENT: build a guided Trial/Tour game flow that introduces a new player to the complete KwizzGo gameplay in a controlled sequence:
+  - explain the stake, answer selection, result/continuation, points and statistics without changing real balance or statistics;
+  - demonstrate every currently available helper (50:50, Poker, Blackjack/21, audience vote, KwizzGoBear), including when and why to use it;
+  - explain time travel, dice rescue, quitting/cash-out and question-error reporting with safe scripted examples;
+  - use step-by-step contextual highlights and plain Hungarian guidance, with resume/skip/restart behavior that works on desktop and mobile;
+  - offer registration at the appropriate points while preserving the existing ten-question guest trial as a lightweight try-before-registering path;
+  - record only tour progress necessary for resuming it, with no real points, answers, statistics, helper usage or moderation side effects.
 - NEXT FIRST: complete the remaining production hardening and browser-level acceptance work:
   - verify global, category-only, and quiz-only ad rotation on the live domain after the successfully deployed advertisement-targeting migration;
   - smoke-test `/quiz/play/{quiz}/questions/{question}/report` end to end on the live domain and confirm that the former HTTP 500 is gone, the game remains continuable, and no points or answer statistics are awarded; inspect the Laravel log after the test;
@@ -63,6 +70,25 @@
 - Complete the competition-specific responsive design, result states, and administrative reporting.
 
 ## Work Log
+
+### 2026-09-07
+
+#### Completed today
+
+- Changed guest homepage quiz-card play actions to open the public `/kviz/` sharing page, added a Facebook share action there, and improved the guest trial registration call to action and shared navigation styling.
+- Repaired hostadmin rich custom e-mail composition by restoring the editor entry point, CSRF metadata, visible submit control, retained failed-form content and editor accessibility styling.
+- Fixed missing shared stylesheet references on the e-mail-template list and delivery pages; added versioned shared-navigation stylesheet loading and stylesheet revalidation for standalone/legacy pages.
+- Restored the customer-support chat widget, its responsive styling and its hostadmin navigation entry after identifying that the live widget markup had disappeared while the chat API remained available.
+- Added hostadmin user-profile histories for successful password, Google, emergency-admin and registration sign-ins; added records for hostadmin-initiated verification, campaign and custom e-mails plus existing campaign deliveries.
+- Added hostadmin manual point adjustments with a mandatory reason, audit log, positive credit and negative deduction, non-negative balance enforcement and user-facing internal notification.
+- Created verified deployment packages under `.deploy` for the homepage/trial/e-mail work, manual point adjustments and support-chat restoration. The focused connected tests and Blade compilation passed during the work.
+
+#### Still unfinished after today
+
+- Run production acceptance for the three uploaded hotfix lines: guest quiz sharing/trial, hostadmin e-mail editor and histories, manual point credit/deduction with bell notification, customer-support widget and its hostadmin queue link.
+- The new history tables begin recording after their deployment; earlier password, Google and manual-mail events cannot be reconstructed without a separate historical data source.
+- Start the Phase 1 guided Trial/Tour product work described above after the current production hotfix acceptance is complete.
+- Continue the remaining production hardening, scheduler, backup/rollback, secret rotation, social-validator, advertisement-rotation, cross-browser and accessibility work listed in Phase 1.
 
 ### 2026-08-27
 

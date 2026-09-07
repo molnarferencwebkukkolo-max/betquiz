@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\LoginActivity;
 use App\Services\LegalConsentService;
 use App\Services\ReferralService;
 use Illuminate\Auth\Events\Registered;
@@ -103,6 +104,7 @@ class GoogleAuthController extends Controller
 
             Auth::login($user, true);
             request()->session()->regenerate();
+            LoginActivity::record($user, request(), 'google');
 
             if ($created || ! $user->username) {
                 return redirect()->route('profile.edit')->with(

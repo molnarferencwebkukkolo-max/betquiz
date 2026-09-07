@@ -2,8 +2,9 @@
 <html lang="hu">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $user->username }} teljes adatlapja | KwizzGo</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/content-editor.js'])
     <link rel="stylesheet" href="{{ asset('css/app-custom.css') }}">
 </head>
 <body class="admin-user-profile min-h-screen bg-slate-100 text-slate-900">
@@ -27,6 +28,23 @@
             <ul class="list-disc space-y-1 pl-5 font-bold">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
         </div>
     @endif
+
+    <section class="mt-6 grid gap-6 lg:grid-cols-2">
+        <div class="rounded-3xl bg-white p-6 shadow">
+            <h2 class="text-2xl font-black">Pontmódosítás</h2>
+            <p class="mt-2 text-sm text-slate-600">Jelenlegi egyenleg: <strong>{{ number_format($user->points ?? 0, 0, ',', ' ') }} PT</strong></p>
+            <form method="POST" action="{{ route('admin.users.points.award', $user) }}" class="mt-5 space-y-4">@csrf
+                <label class="block font-bold">Pontok száma<input name="amount" type="number" min="-1000000" max="1000000" required value="{{ old('amount') }}" class="mt-1 w-full rounded-xl border-slate-300"></label>
+                <p class="text-sm text-slate-600">Pozitív szám jóváír, negatív szám levon. Az egyenleg nem lehet negatív.</p>
+                <label class="block font-bold">Módosítás oka<textarea name="reason" rows="3" maxlength="500" required class="mt-1 w-full rounded-xl border-slate-300">{{ old('reason') }}</textarea></label>
+                <button type="submit" class="rounded-xl bg-amber-400 px-6 py-3 font-black text-slate-950" onclick="return confirm('Biztosan módosítod a megadott pontokat?')">Pontok módosítása</button>
+            </form>
+        </div>
+        <div class="rounded-3xl bg-white p-6 shadow">
+            <h2 class="text-2xl font-black">Kézi pontmódosítások</h2>
+            <div class="mt-4 space-y-3">@forelse($user->manualPointAwards as $award)<div class="border-t pt-3"><div class="flex flex-wrap justify-between gap-2"><strong class="{{ $award->amount > 0 ? 'text-emerald-700' : 'text-red-700' }}">{{ $award->amount > 0 ? '+' : '−' }}{{ number_format(abs($award->amount), 0, ',', ' ') }} PT</strong><span class="text-sm text-slate-600">{{ $award->created_at?->format('Y. m. d. H:i') }}</span></div><div class="mt-1 text-sm">{{ $award->reason }}</div><div class="mt-1 text-sm text-slate-600">Módosította: {{ $award->awardedBy?->username ?? $award->awardedBy?->name ?? 'Ismeretlen' }}</div></div>@empty<p class="text-slate-500">Még nincs kézi pontmódosítás.</p>@endforelse</div>
+        </div>
+    </section>
 
     @if(\Illuminate\Support\Facades\Route::has('admin.users.email'))
     <section class="mt-6 rounded-3xl bg-white p-6 shadow">
@@ -77,16 +95,16 @@
             </div>
         </div>
 
-        <details id="custom-email-editor" class="mt-5 rounded-2xl border border-purple-200 p-5">
+        <details @if(old('subject') !== null) open @endif id="custom-email-editor" class="mt-5 rounded-2xl border border-purple-200 p-5">
             <summary class="cursor-pointer text-lg font-black text-purple-800">Egyedi e-mail szerkesztő megnyitása</summary>
             <form method="POST" enctype="multipart/form-data" data-content-editor-form action="{{ route('admin.users.email.custom', $user) }}" class="mt-5 space-y-5">@csrf
                 <div class="grid gap-4 md:grid-cols-2"><label class="font-bold">Levél tárgya<input name="subject" required maxlength="255" value="{{ old('subject') }}" class="mt-1 w-full rounded-xl border-slate-300"></label><label class="font-bold">Főcím<input name="heading" required maxlength="255" value="{{ old('heading') }}" class="mt-1 w-full rounded-xl border-slate-300"></label><label class="font-bold md:col-span-2">Fejléckép<input type="file" name="header_image" accept="image/jpeg,image/png,image/webp" class="mt-1 block w-full"></label></div>
                 <div class="content-editor-toolbar" data-editor-toolbar>@foreach([['bold','B'],['italic','I'],['underline','U'],['strike','S'],['h2','H2'],['h3','H3'],['bulletList','• Lista'],['orderedList','1. Lista'],['blockquote','Idézet'],['link','Link'],['alignLeft','Bal'],['alignCenter','Közép'],['alignRight','Jobb'],['table','Táblázat'],['undo','↶'],['redo','↷']] as [$command,$label])<button type="button" data-editor-command="{{ $command }}">{{ $label }}</button>@endforeach<button type="button" data-editor-image>Kép</button><input type="file" data-editor-image-input accept="image/jpeg,image/png,image/webp,image/gif" hidden></div>
-                <div class="content-tiptap-editor" data-content-editor data-upload-url="{{ route('admin.email-templates.upload-image') }}"></div><input type="hidden" name="content_json" data-content-json><input type="hidden" name="content_html" data-content-html><script type="application/json" data-initial-content>{!! json_encode(null) !!}</script>
+                <div class="content-tiptap-editor" data-content-editor data-upload-url="{{ route('admin.email-templates.upload-image') }}"></div><input type="hidden" name="content_json" data-content-json><input type="hidden" name="content_html" data-content-html><script type="application/json" data-initial-content>{!! json_encode(old('content_json') ? json_decode(old('content_json'), true) : null, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT) !!}</script>
                 <div class="grid gap-5 md:grid-cols-2"><label class="font-bold">Ajánlott kvízek<select name="recommended_quiz_ids[]" multiple size="6" class="mt-1 w-full rounded-xl border-slate-300">@foreach($recommendedQuizzes as $quiz)<option value="{{ $quiz->id }}">{{ $quiz->title }}</option>@endforeach</select></label><label class="font-bold">Ajánlott tartalmak<select name="recommended_content_ids[]" multiple size="6" class="mt-1 w-full rounded-xl border-slate-300">@foreach($recommendedContents as $content)<option value="{{ $content->id }}">{{ $content->title }}</option>@endforeach</select></label></div>
                 <label class="flex items-center gap-3 font-bold"><input type="checkbox" name="include_progress" value="1"> „Így állsz” blokk beillesztése</label>
                 <div class="grid gap-4 md:grid-cols-2"><label class="font-bold">Fő gomb felirata<input name="button_text" maxlength="100" class="mt-1 w-full rounded-xl border-slate-300"></label><label class="font-bold">Záró szöveg<textarea name="footer" rows="3" class="mt-1 w-full rounded-xl border-slate-300"></textarea></label></div>
-                <button class="rounded-xl bg-purple-700 px-6 py-3 font-black text-white" onclick="return confirm('Biztosan elküldöd az egyedi e-mailt?')">Egyedi e-mail elküldése</button>
+                <button type="submit" class="content-primary-button w-full" onclick="return confirm('Biztosan elküldöd az egyedi e-mailt?')">Egyedi e-mail elküldése</button>
             </form>
         </details>
     </section>
@@ -141,6 +159,43 @@
     <section class="mt-6 grid gap-6 lg:grid-cols-2">
         <div class="rounded-3xl bg-white p-6 shadow"><h2 class="text-xl font-black">Jogi elfogadasok</h2>@forelse($user->legalConsents as $consent)<div class="mt-4 border-t pt-4"><strong>{{ $consent->consent_type }}</strong><div class="text-sm text-slate-600">Verzio: {{ $consent->content_version }} · {{ $consent->accepted_at?->format('Y. m. d. H:i') }}</div><div class="break-all text-sm">{{ $consent->document_url }}</div><div class="text-sm">IP: {{ $consent->ip_address ?: 'nem rogzitett' }}</div></div>@empty<p class="mt-3 text-slate-500">Nincs rogzitett elfogadas.</p>@endforelse</div>
         <div class="rounded-3xl bg-white p-6 shadow"><h2 class="text-xl font-black">Meghivasok</h2><p class="mt-3">Meghivo: <strong>{{ $user->receivedReferral?->inviter?->username ?? 'Nem meghivassal regisztralt' }}</strong></p>@forelse($user->invitedReferrals as $referral)<div class="mt-3 border-t pt-3"><strong>{{ $referral->invitedUser?->username ?? 'Torolt felhasznalo' }}</strong> · {{ number_format($referral->reward_points, 0, ',', ' ') }} PT · {{ $referral->rewarded_at?->format('Y. m. d. H:i') }}</div>@empty<p class="mt-3 text-slate-500">Meg nincs meghivott felhasznalo.</p>@endforelse</div>
+    </section>
+
+    <section class="mt-6 grid gap-6 xl:grid-cols-2">
+        <div class="rounded-3xl bg-white p-6 shadow">
+            <h2 class="text-xl font-black">E-mail történet</h2>
+            <p class="mt-2 text-sm text-slate-600">A hostadmin által innen indított levelek és a kampányküldések.</p>
+            <div class="mt-4 space-y-3">
+                @forelse($user->emailLogs as $emailLog)
+                    <div class="border-t pt-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2"><strong>{{ $emailLog->subject }}</strong><span class="rounded-full bg-purple-100 px-2 py-1 text-xs font-black text-purple-800">{{ match($emailLog->type) {'verification' => 'Hitelesítés', 'campaign' => 'Kampány', 'custom' => 'Egyedi', default => $emailLog->type} }}</span></div>
+                        <div class="mt-1 text-sm text-slate-600">{{ $emailLog->sent_at?->format('Y. m. d. H:i') }} · Küldte: {{ $emailLog->sender?->username ?? $emailLog->sender?->name ?? 'Rendszer' }}</div>
+                    </div>
+                @empty
+                    <p class="text-slate-500">Még nincs innen indított e-mail.</p>
+                @endforelse
+                @foreach($campaignDeliveries as $delivery)
+                    <div class="border-t pt-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2"><strong>{{ $delivery->template?->subject ?? 'Kampánylevél' }}</strong><span class="rounded-full bg-indigo-100 px-2 py-1 text-xs font-black text-indigo-800">Automatikus</span></div>
+                        <div class="mt-1 text-sm text-slate-600">{{ $delivery->sent_at?->format('Y. m. d. H:i') }} · {{ $delivery->template?->name ?? 'Korábbi kampány' }}</div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+        <div class="rounded-3xl bg-white p-6 shadow">
+            <h2 class="text-xl font-black">Bejelentkezési történet</h2>
+            <p class="mt-2 text-sm text-slate-600">Csak sikeres belépések; a jelszó és a munkamenet adatai nem kerülnek naplózásra.</p>
+            <div class="mt-4 space-y-3">
+                @forelse($user->loginActivities as $loginActivity)
+                    <div class="border-t pt-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2"><strong>{{ match($loginActivity->method) {'password' => 'E-mail és jelszó', 'google' => 'Google', 'emergency' => 'Vészhelyzeti hostadmin', default => $loginActivity->method} }}</strong><span class="text-sm text-slate-600">{{ $loginActivity->logged_in_at?->format('Y. m. d. H:i') }}</span></div>
+                        <div class="mt-1 break-all text-sm text-slate-600">IP: {{ $loginActivity->ip_address ?? 'Nincs rögzítve' }} · {{ $loginActivity->user_agent ?: 'Ismeretlen böngésző' }}</div>
+                    </div>
+                @empty
+                    <p class="text-slate-500">A belépések a mostani frissítéstől kezdve jelennek meg itt.</p>
+                @endforelse
+            </div>
+        </div>
     </section>
 </main>
 </body>

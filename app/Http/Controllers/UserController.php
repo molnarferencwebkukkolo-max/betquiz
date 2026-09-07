@@ -5,8 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Content;
 use App\Models\EmailTemplate;
+use App\Models\UserEmailLog;
+use App\Models\EmailCampaignDelivery;
+use App\Models\ManualPointAward;
 use App\Models\Quiz;
 use App\Notifications\CampaignEmailNotification;
+use App\Notifications\ManualPointAdjustmentNotification;
 use App\Services\ContentHtmlSanitizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -110,6 +114,9 @@ class UserController extends Controller
             'legalConsents.content',
             'receivedReferral.inviter:id,name,username',
             'invitedReferrals.invitedUser:id,name,username,created_at',
+            'loginActivities' => fn ($query) => $query->latest('logged_in_at')->limit(15),
+            'emailLogs' => fn ($query) => $query->with(['sender:id,name,username', 'template:id,name'])->latest('sent_at')->limit(15),
+            'manualPointAwards' => fn ($query) => $query->with('awardedBy:id,name,username')->latest()->limit(10),
         ])->loadCount(['createdQuizzes', 'questionReports', 'invitedReferrals']);
 
         $activity = [
@@ -126,8 +133,47 @@ class UserController extends Controller
             ->orderBy('title')->get(['id', 'title']);
         $recommendedContents = Content::query()->whereIn('status', ['published', 'scheduled'])
             ->orderBy('title')->get(['id', 'title']);
+        $campaignDeliveries = EmailCampaignDelivery::query()
+            ->with('template:id,name,subject')
+            ->where('user_id', $user->id)
+            ->latest('sent_at')
+            ->limit(15)
+            ->get();
 
-        return view('admin.users.show', compact('user', 'activity', 'campaigns', 'recommendedQuizzes', 'recommendedContents'));
+        return view('admin.users.show', compact('user', 'activity', 'campaigns', 'recommendedQuizzes', 'recommendedContents', 'campaignDeliveries'));
+    }
+
+    /** Hostadmin által jóváírt pont mindig indoklással és külön naplóval jár. */
+    public function awardPoints(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()?->isHostadmin(), 403);
+
+        $validated = $request->validate([
+            'amount' => ['required', 'integer', 'between:-1000000,1000000', 'not_in:0'],
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        DB::transaction(function () use ($request, $user, $validated): void {
+            $recipient = User::query()->lockForUpdate()->findOrFail($user->id);
+            if ($recipient->points + $validated['amount'] < 0) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'amount' => 'Nem vonható le több pont, mint a felhasználó jelenlegi egyenlege.',
+                ]);
+            }
+            $recipient->increment('points', $validated['amount']);
+            ManualPointAward::create([
+                'user_id' => $recipient->id,
+                'awarded_by' => $request->user()->id,
+                'amount' => $validated['amount'],
+                'reason' => trim($validated['reason']),
+            ]);
+        });
+
+        $user->notify(new ManualPointAdjustmentNotification($validated['amount'], trim($validated['reason'])));
+
+        $action = $validated['amount'] > 0 ? 'jóváírva' : 'levonva';
+
+        return back()->with('success', number_format(abs($validated['amount']), 0, ',', ' ').' PT '.$action.': '.$user->username.'.');
     }
 
     /** A felhasználó saját, személyre szabott hitelesítő linkjének admin újraküldése. */
@@ -137,6 +183,7 @@ class UserController extends Controller
 
         try {
             $user->sendEmailVerificationNotification();
+            $this->logEmail($request, $user, 'verification', 'E-mail-cím hitelesítése');
         } catch (\Throwable $exception) {
             return $this->emailFailure($request, $user, 'verification', $exception);
         }
@@ -154,6 +201,7 @@ class UserController extends Controller
 
         try {
             $user->notify(new CampaignEmailNotification($template, true, $user));
+            $this->logEmail($request, $user, 'campaign', $template->subject, $template);
         } catch (\Throwable $exception) {
             return $this->emailFailure($request, $user, 'campaign', $exception);
         }
@@ -192,6 +240,7 @@ class UserController extends Controller
 
         try {
             $user->notify(new CampaignEmailNotification($template, true, $user));
+            $this->logEmail($request, $user, 'custom', $template->subject);
         } catch (\Throwable $exception) {
             return $this->emailFailure($request, $user, 'custom', $exception);
         }
@@ -207,6 +256,19 @@ class UserController extends Controller
         ]);
 
         return back()->withInput()->with('error', 'Az e-mail nem ment ki. Ellenőrizd az SMTP-beállításokat és a Laravel naplót.');
+    }
+
+    /** A sikeresen elküldött, hostadmin által kezdeményezett levél metaadatait rögzíti. */
+    private function logEmail(Request $request, User $user, string $type, string $subject, ?EmailTemplate $template = null): void
+    {
+        UserEmailLog::create([
+            'user_id' => $user->id,
+            'sender_id' => $request->user()?->id,
+            'email_template_id' => $template?->id,
+            'type' => $type,
+            'subject' => $subject,
+            'sent_at' => now(),
+        ]);
     }
 
     /**

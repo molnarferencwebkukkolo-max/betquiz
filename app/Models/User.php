@@ -135,6 +135,21 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(QuestionReport::class, 'reporter_id');
     }
 
+    public function loginActivities(): HasMany
+    {
+        return $this->hasMany(LoginActivity::class);
+    }
+
+    public function emailLogs(): HasMany
+    {
+        return $this->hasMany(UserEmailLog::class);
+    }
+
+    public function manualPointAwards(): HasMany
+    {
+        return $this->hasMany(ManualPointAward::class);
+    }
+
     /** A legalább három lezárt jelzésből 30% feletti FAKE arány korlátozást jelent. */
     public function questionReportStats(): array
     {

@@ -68,6 +68,7 @@
                 <a class="public-quiz-cta" href="{{ route('login') }}">Belépés és játék</a>
                 <p class="public-quiz-register">Még nincs fiókod? <a href="{{ route('register') }}">Regisztrálj ingyen!</a></p>
             @endauth
+            <a class="public-quiz-cta" href="https://www.facebook.com/sharer/sharer.php?u={{ rawurlencode($canonicalUrl) }}" target="_blank" rel="noopener noreferrer">Megosztás Facebookon</a>
         </div>
     </article>
 </main>

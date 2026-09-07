@@ -1,4 +1,6 @@
 @php($unreadNotificationCount = auth()->check() ? auth()->user()->unreadNotifications()->count() : 0)
+@php($navigationStylesheet = asset('css/app-custom.css').'?v='.filemtime(public_path('css/app-custom.css')))
+<link rel="stylesheet" href="{{ $navigationStylesheet }}">
 <header class="nav-header" data-mobile-navigation>
     <div class="nav-container">
         <div class="nav-wrapper">
@@ -43,7 +45,7 @@
                     @endauth
 
                     @if(auth()->check() && auth()->user()->isUseradmin())
-                        @php($adminNavigationActive = request()->routeIs('questions.*', 'admin.users.*', 'admin.contents.*', 'admin.email-templates.*', 'admin.advertisements.*', 'admin.categories.*'))
+                        @php($adminNavigationActive = request()->routeIs('questions.*', 'admin.users.*', 'admin.contents.*', 'admin.email-templates.*', 'admin.advertisements.*', 'admin.categories.*', 'admin.support-chat.*'))
                         <details class="nav-admin-dropdown" @if($adminNavigationActive) data-active @endif>
                             <summary class="nav-link-item nav-admin-trigger {{ $adminNavigationActive ? 'active' : '' }}">Adminisztráció <span aria-hidden="true">⌄</span></summary>
                             <div class="nav-admin-dropdown-panel">
@@ -52,6 +54,7 @@
                                 <a href="{{ route('admin.users.index') }}" class="nav-link-item nav-link-purple {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">Felhasználók</a>
                                 @if(auth()->user()->isHostadmin())
                                     <a href="{{ route('admin.email-templates.index') }}" class="nav-link-item nav-link-purple {{ request()->routeIs('admin.email-templates.*') ? 'active' : '' }}">E-mail sablonok</a>
+                                    <a href="{{ route('admin.support-chat.index') }}" class="nav-link-item nav-link-purple {{ request()->routeIs('admin.support-chat.*') ? 'active' : '' }}">Ügyfélszolgálati chat</a>
                                     <a href="{{ route('admin.contents.index') }}" class="nav-link-item nav-link-purple {{ request()->routeIs('admin.contents.*') ? 'active' : '' }}">Tartalomkezelő</a>
                                     <a href="{{ route('admin.advertisements.index') }}" class="nav-link-item nav-link-purple {{ request()->routeIs('admin.advertisements.*') ? 'active' : '' }}">Hirdetések</a>
                                     <a href="{{ route('admin.categories.index') }}" class="nav-link-item nav-link-purple {{ request()->routeIs('admin.categories.*') ? 'active' : '' }}">Kategóriák</a>
@@ -159,3 +162,4 @@
     })();
 </script>
 <x-cookie-consent />
+<x-support-chat />

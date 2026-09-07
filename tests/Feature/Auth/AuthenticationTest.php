@@ -32,6 +32,10 @@ class AuthenticationTest extends TestCase
         ])->assertRedirect('/dashboard');
 
         $this->assertAuthenticatedAs($user);
+        $this->assertDatabaseHas('login_activities', [
+            'user_id' => $user->id,
+            'method' => 'password',
+        ]);
         $this->assertNotSame($oldSessionId, $this->app['session']->getId());
     }
 

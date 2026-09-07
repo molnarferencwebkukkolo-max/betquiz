@@ -29,3 +29,12 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# The shared UI stylesheet is referenced directly by legacy and standalone
+# Blade views. Revalidate it so a deployment cannot leave those pages on an
+# older navigation or support-chat stylesheet.
+<IfModule mod_headers.c>
+    <Files "app-custom.css">
+        Header set Cache-Control "no-cache, must-revalidate"
+    </Files>
+</IfModule>

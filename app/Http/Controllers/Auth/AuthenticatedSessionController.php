@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\LoginActivity;
 use App\Services\RecaptchaVerifier;
 use App\Services\EmergencyAdminAuthenticator;
 use Illuminate\Http\RedirectResponse;
@@ -43,6 +44,7 @@ class AuthenticatedSessionController extends Controller
         if ($user = $emergencyAdmin->attempt($credentials['email'], $credentials['password'])) {
             Auth::login($user, $request->boolean('remember'));
             $request->session()->regenerate();
+            LoginActivity::record($user, $request, 'emergency');
 
             return redirect()->intended(route('dashboard', absolute: false));
         }
@@ -71,6 +73,7 @@ class AuthenticatedSessionController extends Controller
         }
 
         $request->session()->regenerate();
+        LoginActivity::record($user, $request, 'password');
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

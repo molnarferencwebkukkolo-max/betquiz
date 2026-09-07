@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="hu"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Próbaeredmény | KwizzGo</title>@vite(['resources/css/app.css','resources/js/app.js'])</head>
+<html lang="hu"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Próbaeredmény | KwizzGo</title>@vite(['resources/css/app.css','resources/js/app.js'])<link rel="stylesheet" href="{{ asset('css/app-custom.css') }}"></head>
 <body class="min-h-screen bg-slate-950 text-white">@include('layouts.navigation')
 <main class="mx-auto flex min-h-[80vh] max-w-2xl items-center px-4 py-10"><section class="w-full rounded-3xl border border-amber-400/30 bg-slate-900 p-8 text-center shadow-2xl">
     <p class="font-black uppercase tracking-widest text-amber-300">Próbajáték vége</p><h1 class="mt-3 text-4xl font-black">{{ $correct }}/{{ $total }} helyes válasz</h1>

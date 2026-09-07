@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\LoginActivity;
 use App\Services\RecaptchaVerifier;
 use App\Services\LegalConsentService;
 use App\Services\ReferralService;
@@ -72,6 +73,7 @@ class RegisteredUserController extends Controller
         }
 
         Auth::login($user);
+        LoginActivity::record($user, $request, 'registration');
 
         return redirect(route('verification.notice', absolute: false));
     }

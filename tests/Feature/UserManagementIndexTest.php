@@ -140,6 +140,12 @@ class UserManagementIndexTest extends TestCase
             return $notification->template->subject === 'Fontos KwizzGo üzenet'
                 && $notification->template->content_html === '<p>Első bekezdés.</p><p>Második bekezdés.</p>';
         });
+        $this->assertDatabaseHas('user_email_logs', [
+            'user_id' => $recipient->id,
+            'sender_id' => $hostadmin->id,
+            'type' => 'custom',
+            'subject' => 'Fontos KwizzGo üzenet',
+        ]);
     }
 
     public function test_hostadmin_can_resend_verification_and_send_a_saved_campaign(): void
@@ -160,6 +166,64 @@ class UserManagementIndexTest extends TestCase
 
         Notification::assertSentTo($recipient, VerifyEmailNotification::class);
         Notification::assertSentTo($recipient, CampaignEmailNotification::class, fn ($notification) => $notification->template->is($campaign));
+    }
+
+    public function test_hostadmin_can_award_points_with_a_recorded_reason(): void
+    {
+        $hostadmin = User::factory()->create(['role' => 'hostadmin']);
+        $recipient = User::factory()->create(['points' => 250]);
+
+        $this->actingAs($hostadmin)->post(route('admin.users.points.award', $recipient), [
+            'amount' => 750,
+            'reason' => 'Verseny nyeremény',
+        ])->assertSessionHas('success');
+
+        $this->assertSame(1000, $recipient->fresh()->points);
+        $this->assertDatabaseHas('manual_point_awards', [
+            'user_id' => $recipient->id,
+            'awarded_by' => $hostadmin->id,
+            'amount' => 750,
+            'reason' => 'Verseny nyeremény',
+        ]);
+        $this->assertDatabaseHas('notifications', [
+            'notifiable_id' => $recipient->id,
+            'notifiable_type' => User::class,
+        ]);
+    }
+
+    public function test_hostadmin_can_deduct_points_but_not_below_zero(): void
+    {
+        $hostadmin = User::factory()->create(['role' => 'hostadmin']);
+        $recipient = User::factory()->create(['points' => 250]);
+
+        $this->actingAs($hostadmin)->post(route('admin.users.points.award', $recipient), [
+            'amount' => -100,
+            'reason' => 'Téves jóváírás javítása',
+        ])->assertSessionHas('success');
+
+        $this->assertSame(150, $recipient->fresh()->points);
+        $this->assertDatabaseHas('manual_point_awards', ['user_id' => $recipient->id, 'amount' => -100]);
+
+        $this->actingAs($hostadmin)->from(route('admin.users.show', $recipient))->post(route('admin.users.points.award', $recipient), [
+            'amount' => -200,
+            'reason' => 'Tiltott levonás',
+        ])->assertSessionHasErrors('amount');
+
+        $this->assertSame(150, $recipient->fresh()->points);
+    }
+
+    public function test_non_hostadmin_cannot_award_manual_points(): void
+    {
+        $useradmin = User::factory()->create(['role' => 'useradmin']);
+        $recipient = User::factory()->create(['points' => 250]);
+
+        $this->actingAs($useradmin)->post(route('admin.users.points.award', $recipient), [
+            'amount' => 750,
+            'reason' => 'Tiltott jóváírás',
+        ])->assertForbidden();
+
+        $this->assertSame(250, $recipient->fresh()->points);
+        $this->assertDatabaseCount('manual_point_awards', 0);
     }
 
     public function test_non_hostadmin_cannot_send_a_custom_user_email(): void

@@ -9,9 +9,12 @@ import TableHeader from '@tiptap/extension-table-header';
 import TableCell from '@tiptap/extension-table-cell';
 import Image from '@tiptap/extension-image';
 
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize once whether loaded through app.js or the dedicated editor entry.
+const initializeContentEditors = () => {
     document.querySelectorAll('[data-content-editor-form]').forEach((form) => {
         const target = form.querySelector('[data-content-editor]');
+        if (!target || target.dataset.initialized) return;
+        target.dataset.initialized = 'true';
         let initialContent = form.querySelector('[data-initial-html]')?.innerHTML || '<p></p>';
         try {
             const parsed = JSON.parse(form.querySelector('[data-initial-content]')?.textContent || 'null');
@@ -49,4 +52,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         form.addEventListener('submit',()=>{form.querySelector('[data-content-json]').value=JSON.stringify(editor.getJSON());form.querySelector('[data-content-html]').value=editor.getHTML();});
     });
-});
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeContentEditors, { once: true });
+} else {
+    initializeContentEditors();
+}

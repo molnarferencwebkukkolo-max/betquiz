@@ -185,6 +185,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::post('/users/{user}/email/verification', [UserController::class, 'sendVerificationEmail'])->name('users.email.verification');
         Route::post('/users/{user}/email/campaign', [UserController::class, 'sendCampaignEmail'])->name('users.email.campaign');
         Route::post('/users/{user}/email/custom', [UserController::class, 'sendCustomEmail'])->name('users.email.custom');
+        Route::post('/users/{user}/points', [UserController::class, 'awardPoints'])->name('users.points.award');
         Route::patch('/users/{user}/status', [UserController::class, 'updateStatus'])
             ->name('users.status');
         Route::get('/quizzes/search', [QuizManagementController::class, 'search'])->name('quizzes.search');
